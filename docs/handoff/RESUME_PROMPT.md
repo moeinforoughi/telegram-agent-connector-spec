@@ -13,7 +13,8 @@ Before changing anything:
    and the task files it references.
 6. Inspect the real repository state:
    `git status`, `git branch --show-current`,
-   `git log --graph --oneline --decorate -15`, `git diff`.
+   `git log --graph --oneline --decorate -15`, `git diff`,
+   `git ls-files --others --exclude-standard`.
 7. Compare the working tree and commits with the last handoff. If they differ,
    investigate before deleting or overwriting anything.
 8. Find the first incomplete task and continue from its first unchecked step.
@@ -28,8 +29,13 @@ Test commands:
 ```powershell
 $env:PATH = "C:\Users\mforo\AppData\Local\Temp\opencode\node-v26.13.0-win-x64;" + $env:PATH
 $env:PLAYWRIGHT_BROWSERS_PATH = "spike/.browsers"   # local Chromium for integration tests
+Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue   # required for E2E
 npm run check
 ```
+
+`ELECTRON_RUN_AS_NODE=1` is set in the DSH shell. With it set, Playwright's
+Electron launch fails with `bad option: --remote-debugging-port=0`. Always
+unset it before E2E/test commands. This is an environment artifact.
 
 If the environment differs (no portable Node, no browsers), record the
 limitation instead of skipping tests silently.

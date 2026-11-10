@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (Phase 2 start)
+Last updated: 2026-11-10 (Phase 2, Task 7 in progress)
 
 ## Project Goal
 
@@ -16,6 +16,8 @@ implied affiliation.
 
 - Modular monolith: Electron Main owns Core and the Browser Manager.
 - Renderer is UI only; Preload exposes a small validated API.
+- Phase 2 adds: BrowserManager (Playwright persistent context), proxy resolver,
+  Telegram login detector/monitor, account store/controller, and account IPC.
 - MCP Server and Named Pipe bridge are future phases.
 - One browser context per profile; account operations serialized.
 - Browsers are lazy-started; the app does not open every account at launch.
@@ -28,7 +30,7 @@ implied affiliation.
 | Electron | 45.2.3 | Main/Preload runtime |
 | Electron embedded Node | 24.22.2 | actual Main runtime |
 | Electron Chromium | 156.0.8078.80 | app UI only |
-| Playwright | 1.65.0 | Browser Manager (runtime dependency from Phase 2) |
+| Playwright | 1.65.0 | Browser Manager (runtime dependency) |
 | Chrome for Testing | 158.0.8127.18 (rev 1254) | Telegram browser |
 | React | 19.3.1 | renderer |
 | TypeScript | 5.9.3 | strict |
@@ -43,13 +45,13 @@ implied affiliation.
 |---|---|---|
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
-| 2 — Browser Manager, proxy, single account login | In progress | `docs/phase2/PHASE2_PLAN.md` |
+| 2 — Browser Manager, proxy, single account login | In progress | `docs/phase2/PHASE2_PLAN.md`; tasks 1–6 committed, task 7 uncommitted |
 | 3+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 2, starting at Task 1 (state files and plan). See
-`docs/handoff/LATEST_HANDOFF.md` for the exact next action.
+Phase 2, Task 7 — IPC, preload and renderer. The wiring exists in the working
+tree but is not verified or committed. See `docs/handoff/LATEST_HANDOFF.md`.
 
 ## Approved Decisions
 
@@ -76,9 +78,30 @@ Phase 2, starting at Task 1 (state files and plan). See
 - Phase 1 hardened Electron (context isolation, sandbox, no node integration,
   allowlisted IPC, sender validation, strict production CSP, permission denial,
   navigation/window blocking).
+- Phase 2 Tasks 1–6 are committed: `22789a8`, `b644d43`, `99da896`, `3e67eab`,
+  `713eb0d`, `cce43eb`. They add the proxy resolver, profile paths/lock,
+  BrowserManager + Playwright launcher, Telegram selector map and login
+  monitor, and the account store/controller.
+- Task 7 wiring (account IPC channels, preload bridge, single-account dashboard)
+  exists only in the working tree. It is not committed.
+- Test status at this checkpoint (2026-11-10):
+  - Unit: 103/103 pass (`npx vitest run tests/unit`).
+  - Integration: 9/9 pass with real Chromium (`npx vitest run tests/integration`).
+  - E2E: 7/8 pass; `loads Playwright and launches a browser from the Electron
+    main process` fails because dynamic `import()` is unavailable inside
+    Playwright's `app.evaluate`.
+  - `npx tsc --noEmit` fails on the untracked `src/main/browser-self-test.ts`,
+    which imports a non-existent `BrowserSelfTestResult` from `src/shared/ipc`.
+    Nothing imports that file.
+  - `npx eslint .` fails on one type-import annotation in `tests/e2e/app.test.ts`.
+  - `npx prettier --check .` reports three unformatted files.
 - Playwright browsers for the root package are not in the default cache; the
   Phase 0 download lives in gitignored `spike/.browsers` (Chromium 1254). Use
-  `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` for local integration tests.
+  `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` for local integration/E2E tests.
+- The DSH shell exports `ELECTRON_RUN_AS_NODE=1`. With it set, Playwright's
+  Electron launch fails with `bad option: --remote-debugging-port=0`. Unset it
+  (for example `Remove-Item Env:ELECTRON_RUN_AS_NODE`) before E2E runs; this is
+  an environment artifact, not an application bug.
 
 ## Important Commits
 
@@ -87,6 +110,12 @@ Phase 2, starting at Task 1 (state files and plan). See
 | `4219476` | Phase 0 feasibility docs |
 | `8e25b57` | Phase 0 2FA and proxy evidence |
 | `619c095` | Phase 1 Electron foundation |
+| `22789a8` | Phase 2 state files and plan |
+| `b644d43` | Proxy resolver and Windows proxy reader |
+| `99da896` | Account profile paths and lock |
+| `3e67eab` | BrowserManager, Playwright launcher, integration tests |
+| `713eb0d` | Telegram selectors, login detector and monitor |
+| `cce43eb` | Account store and controller |
 
 ## Key Documents
 
