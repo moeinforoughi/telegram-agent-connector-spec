@@ -46,6 +46,7 @@ Priority: P0 | Depends on: TASK 00, TASK 01, TASK 02 | Commit: `feat(browser): a
 ## Phase 2 Mapping (2026-11-10)
 - این Task با Taskهای ۲.۱ تا ۲.۶ و ۲.۸ پلن Phase 2 پیاده‌سازی می‌شود.
 - جزئیات: `docs/phase2/PHASE2_PLAN.md`.
-- وضعیت: پیاده‌سازی و تست خودکار Phase 2 کامل شد (`07f20d9`، `582c01a`). تست‌های
-  زنده QR/2FA/Restart/Proxy در `docs/phase2/PHASE2_REPORT.md` §8 در انتظار کاربر
-  هستند؛ Phase 2 تا آن زمان Partially Verified است.
+- وضعیت: پیاده‌سازی و تست خودکار Phase 2 کامل شد (`07f20d9`، `582c01a`)، و در
+  اصلاح نهایی Proxy، اتصال فقط از تنظیمات دستی کاربر انجام می‌شود (`67cb669`).
+  تست‌های زنده QR/2FA/Restart/Proxy در `docs/phase2/PHASE2_REPORT.md` §8 در
+  انتظار کاربر هستند؛ Phase 2 تا آن زمان Partially Verified است.

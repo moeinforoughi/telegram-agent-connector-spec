@@ -4,76 +4,68 @@
 Telegram Agent Connector
 
 ## Current Phase
-Phase 2 — Browser Manager, Proxy Integration & Single Account Login
-Status: **Partially Verified**. Automated verification is complete; the live
-Telegram checklist is pending user execution.
+Phase 2 — Browser Manager, Proxy, Single Account Login.
+Status: **Partially Verified**. Automated work is complete; live QR/2FA/session
+checks are pending the user.
 
 ## Current Task
-Task 8 — verification and Phase 2 report. Automated part complete and committed
-(`582c01a`). The remaining work is the live manual checklist in
+Phase 2 final proxy fix — implementation and automated verification complete
+(`67cb669`). Remaining: the live checklist in
 `docs/phase2/PHASE2_REPORT.md` §8.
 
 ## Overall Status
 Partially Verified — not complete. Phase 3 must not start.
 
 ## Last Verified Commit
-Automated verification ran on `582c01a` (`test(phase2): complete browser
-integration verification`) and passed. Last product-code commit: `07f20d9`.
-The documentation commit that contains this handoff is the latest commit on
-`main`; check `git log -1`.
+`67cb669` `feat(proxy): add manual proxy configuration and preserve browser on
+errors` passed full `npm run check`. The documentation commit containing this
+handoff is the latest commit on `main` (check `git log -1`).
 
 ## Git Branch
 main
 
 ## Working Tree
-The only changes in this checkpoint are documentation:
-`docs/phase2/PHASE2_REPORT.md` (new), this handoff, `PROJECT_STATE.md`,
-`SESSION_LOG.md`, `RESUME_PROMPT.md`, the architecture document's updated test
-counts, and the `TASKS/02`/`TASKS/03` status lines. No product code is
-uncommitted.
+Documentation updates for the manual proxy change: `AGENTS.md`,
+`ARCHITECTURE_DECISIONS.md` (ADR-013/018 superseded, ADR-020/021 added),
+`docs/architecture/IMPLEMENTED_ARCHITECTURE.md`, `docs/PROJECT_STATE.md`, this
+handoff, `SESSION_LOG.md`, `RESUME_PROMPT.md`, `docs/phase2/PHASE2_REPORT.md`,
+and `docs/phase2/PHASE2_PLAN.md`. No product code is uncommitted.
 
 ## Completed Work
 
-- Phase 0 — feasibility spike, real QR/2FA/session evidence.
+- Phase 0 — feasibility spike, real QR/2FA/session evidence (`4219476`,
+  `8e25b57`).
 - Phase 1 — secure Electron foundation (`619c095`).
-- Phase 2 Task 1 — state files and plan (`22789a8`).
-- Phase 2 Task 2 — proxy resolver and Windows proxy reader (`b644d43`).
-- Phase 2 Task 3 — profile paths and lock (`99da896`).
-- Phase 2 Task 4 — BrowserManager, Playwright launcher, integration tests
-  (`3e67eab`).
-- Phase 2 Task 5 — Telegram selectors, login detector/monitor, fixtures
-  (`713eb0d`).
-- Phase 2 Task 6 — account store and controller (`cce43eb`).
-- Phase 2 Task 7 — account IPC, preload bridge, single-account dashboard
-  (`07f20d9`).
-- Task 8 governance — permanent Session-Independent Development rules in
-  `AGENTS.md` and state docs (`0ac40fe`).
-- Task 8 architecture audit — `docs/architecture/IMPLEMENTED_ARCHITECTURE.md`
-  and ADR-015…019 (`9c2d0d2`).
-- Task 8 automated verification (`582c01a`):
-  - E2E launcher now strips `ELECTRON_RUN_AS_NODE` from the child environment,
-    so `npm run check` works even when the DSH shell exports it.
-  - Integration test for stale-lock recovery: a dead PID lock is replaced, the
-    profile and its files are preserved, and the new lock carries the live PID.
-  - Integration test for proxy loss/recovery: navigation fails while the local
-    proxy is down, then succeeds through a restarted proxy.
-  - Full `npm run check` passed with the variable still set: typecheck, lint,
-    format, 103 unit tests, 11 integration tests, build, 8 E2E tests.
+- Phase 2 Tasks 1–7 — plan, profile paths/lock, BrowserManager + Playwright,
+  Telegram selectors/login monitor, account store/controller, IPC/preload/
+  dashboard (`22789a8`, `b644d43`, `99da896`, `3e67eab`, `713eb0d`, `cce43eb`,
+  `07f20d9`).
+- Task 8 — governance rules (`0ac40fe`), architecture audit (`9c2d0d2`),
+  automated verification (`582c01a`, `9d5065a`, `378f294`).
+- Final proxy fix (`67cb669`):
+  - Removed system-proxy auto-detection from the connection path; deleted
+    `proxy-resolver.ts` and `windows-proxy.ts`; kept a small parser
+    (`proxy-server.ts`).
+  - Added `proxy-settings.ts`: manual SOCKS5/HTTP settings, validation,
+    atomic `config/proxy.json`, safeStorage-encrypted credentials (never
+    plaintext; not persisted at all if OS encryption is unavailable).
+  - Added `proxy-probe.ts`: real HTTP CONNECT / SOCKS5 CONNECT tunnel test to
+    `web.telegram.org:443` with distinct statuses (`success`,
+    `connection_refused`, `timeout`, `auth_failed`, `proxy_unavailable`,
+    `invalid_config`).
+  - Added IPC `proxy:get`, `proxy:save`, `proxy:test`, preload methods, and the
+    Network/Proxy UI (Enable, protocol, host, port, optional auth, Test Proxy,
+    Save).
+  - AccountController now reads manual proxy settings, applies them through
+    Playwright's official `proxy` option (credentials as separate fields), keeps
+    the browser/profile alive after a navigation error, and retries navigation
+    in place; it relaunches only if the proxy changed or the page closed.
+  - Renamed/updated tests: new proxy unit tests, SOCKS5 Chromium integration,
+    browser-preservation integration, proxy UI/persistence/credential E2E.
 
-## Task 7 Review Result
+## Test Results (2026-11-10, commit `67cb669`)
 
-- Account IPC, preload surface, renderer isolation, sender/payload validation,
-  dashboard↔Main flow, and account metadata handling were reviewed against the
-  code and tests; all pass.
-- E2E Playwright-in-Main uses `process.mainModule.require` because
-  `app.evaluate` has no dynamic import. It works on Electron 45.2.3 / Node
-  24.22.2 but the API is deprecated; it is test-only. If Main moves to ESM, the
-  test must change. No product code depends on it.
-- No Task 7 logic was changed in Task 8; only the E2E environment was hardened.
-
-## Test Results (2026-11-10, commit `582c01a`)
-
-Environment (the E2E launcher sanitizes `ELECTRON_RUN_AS_NODE` itself):
+Environment:
 
 ```powershell
 $env:PATH = "C:\Users\mforo\AppData\Local\Temp\opencode\node-v26.13.0-win-x64;" + $env:PATH
@@ -82,69 +74,80 @@ npm run check
 ```
 
 - `npm run check` — PASS (exit 0).
-- `tsc --noEmit` — PASS.
-- `eslint .` — PASS.
-- `prettier --check .` — PASS (including all docs in this checkpoint).
-- Unit — 17 files / 103 tests PASS.
-- Integration — 2 files / 11 tests PASS (real Chromium).
+- Typecheck — PASS; Lint — PASS; Format — PASS.
+- Unit — 18 files / 106 tests PASS.
+- Integration — 2 files / 12 tests PASS (real Chromium).
 - Build — PASS.
-- Electron E2E — 1 file / 8 tests PASS, with `ELECTRON_RUN_AS_NODE=1` still
-  exported.
+- Electron E2E — 1 file / 10 tests PASS with `ELECTRON_RUN_AS_NODE=1` exported
+  (the launcher strips it).
+
+Real environment evidence (not committed as tests):
+
+- `probeProxy` reached `web.telegram.org:443` through
+  `socks5://127.0.0.1:10808`, `socks5://127.0.0.1:12334`, and
+  `http://127.0.0.1:10808`.
+- Chromium loaded `https://web.telegram.org/k/` with HTTP 200 through
+  `socks5://127.0.0.1:10808`.
+- Live DOM had `#auth-pages` / `#auth-pages canvas`, so the login selectors still
+  match the current WebZ.
+
+## Architecture Decisions
+
+- ADR-020 — Manual Proxy Configuration (supersedes ADR-013 and ADR-018).
+- ADR-021 — Keep browser/profile/session after navigation errors; retry in
+  place; relaunch only on proxy change or closed page.
+- ADR-019 — E2E loads Playwright via `process.mainModule.require`; test-only,
+  deprecated API.
+- D-006 is revised to Manual Proxy Configuration in `PROJECT_STATE.md`.
 
 ## Environment Facts
 
-- `ELECTRON_RUN_AS_NODE=1` exists only in the DSH shell environment, not in the
-  Windows User/Machine environment. It makes Electron boot as Node and breaks
-  Playwright's launch (`bad option: --remote-debugging-port=0`). Tests now
-  sanitize it; interactive `npm run dev` in that shell still needs it unset.
-  Never change the user's Windows environment for this.
-- `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` is a development/test path only.
-  Chromium revision 1254 matches Playwright 1.65.0. The default
-  `%LOCALAPPDATA%\ms-playwright` cache is absent. Product code never reads the
-  variable. Phase 6 must bundle Chromium.
+- `ELECTRON_RUN_AS_NODE=1` is exported by the DSH shell only (not User/Machine).
+  `npm run check` strips it for the E2E child; `npm run dev` in that shell must
+  unset it. No Windows environment change is made.
+- `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` is development/test only; it matches
+  Playwright 1.65.0 Chromium revision 1254. Product code does not read it, and
+  Phase 6 must bundle Chromium.
+- The current machine has V2RayN (`127.0.0.1:10808`) and Hiddify
+  (`127.0.0.1:12334`) running; neither is hardcoded in the app.
 
-## Known Issues (documented, not fixed in Task 8)
+## Known Issues
 
-- Live QR/2FA/session/restart/proxy behavior is unverified (Pending manual).
-- System-proxy inheritance is unproven; only the explicit/registry-read path is
-  tested. When resolution is `direct`, Chromium may still use its own Windows
-  proxy, and the source is not attributed.
+- Live QR/2FA/session/restart/proxy-loss behavior is unverified (Pending).
+- SOCKS5 authentication through Chromium/Playwright is unverified; the probe
+  supports it and HTTP auth is tested with Chromium.
+- A proxy change applies on the next connection; while connected, the user must
+  Disconnect, save, then Connect.
 - The account view starts empty after an app restart; the stored account is
-  reused on the next start, but the UI still says "Add Account".
-- `stop()` during an in-flight launch can leave a browser running while the view
-  says disconnected. The UI disables buttons during the operation, but an IPC
-  caller could trigger it.
-- A page crash is only logged; it does not close the context.
-- SOCKS5 proxy authentication is untested; HTTP auth is covered.
+  reused on connect but the button still says "Add Account".
+- Page crash is logged; it does not close the context.
 - Chromium is not bundled until Phase 6.
-- No multi-account queue, permissions, audit logger, MCP, or tray yet (later
-  phases).
+- No multi-account queue, permissions, audit logger, MCP, or tray yet.
 
 ## Blockers
-Automated work is not blocked. The live checklist needs the user, a real
-Telegram account, and QR/2FA.
+Automated work is not blocked. The live checklist needs the user and a real
+Telegram account.
 
 ## Remaining Work
 
-1. User executes the 16-step checklist in `docs/phase2/PHASE2_REPORT.md` §8 and
-   reports each actual result.
-2. Record the results in this handoff (date, step, expected, actual), update
-   `PROJECT_STATE.md` and `SESSION_LOG.md`, and commit the documentation.
-3. Only then decide whether Phase 2 can be marked Complete. Any failed step
-   needs a fix that is documented and committed before the decision.
-4. Do not start Phase 3 without explicit user approval.
+1. User runs the 16-step checklist in `docs/phase2/PHASE2_REPORT.md` §8 using
+   SOCKS5 `127.0.0.1:10808`, then Hiddify on 12334.
+2. Record actual results in this handoff, update `PROJECT_STATE.md` and
+   `SESSION_LOG.md`, and commit the documentation.
+3. Only then decide whether Phase 2 can be marked Complete.
+4. Do not start Phase 3 without explicit approval.
 
 ## Exact Next Action
-Ask the user to run `docs/phase2/PHASE2_REPORT.md` §8, starting with
+Ask the user to run `docs/phase2/PHASE2_REPORT.md` §8, beginning with
 `npm run dev` (after unsetting `ELECTRON_RUN_AS_NODE` in that shell and setting
-`PLAYWRIGHT_BROWSERS_PATH=spike/.browsers`), then collect the 16 results. No code
-change is pending. Do not run the live steps on the user's behalf and do not
-mark them passed without real evidence.
+`PLAYWRIGHT_BROWSERS_PATH=spike/.browsers`). No code change is pending. Do not
+perform the live login on the user's behalf and do not mark steps passed without
+real evidence.
 
 ## Resume Instructions
 Read `AGENTS.md`, `docs/PROJECT_STATE.md`, this file,
 `docs/handoff/SESSION_LOG.md`, `docs/handoff/RESUME_PROMPT.md`,
 `docs/architecture/IMPLEMENTED_ARCHITECTURE.md`, and
-`docs/phase2/PHASE2_REPORT.md`. Then check `git status`, `git log --oneline -12`,
-and `git diff`. Tasks 1–8 automated work is committed; never redo it. The only
-open work is the live manual checklist and the Phase 2 completion decision.
+`docs/phase2/PHASE2_REPORT.md`. Check `git status`, `git log --oneline -12`, and
+`git diff`. All Phase 2 code is committed; the only open work is the live
+checklist and the completion decision.

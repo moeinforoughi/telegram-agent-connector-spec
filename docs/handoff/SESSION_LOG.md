@@ -143,3 +143,36 @@
   Pending and must be run by the user. No Phase 3 work started.
 - Final documentation commit hash: see `git log -1` (this entry is committed
   with it).
+
+## 2026-11-10 — Phase 2 final proxy fix (manual configuration)
+
+- User reported `starting browser (direct/direct)` followed by `NETWORK_ERROR`:
+  Windows System Proxy was not configured, but V2RayN (`127.0.0.1:10808`) and
+  Hiddify (`127.0.0.1:12334`) were running locally.
+- Replaced automatic system-proxy detection with a general manual configuration:
+  - Deleted `proxy-resolver.ts` and `windows-proxy.ts`; added a small
+    `proxy-server.ts` parser.
+  - Added `proxy-settings.ts` (validation, atomic `config/proxy.json`,
+    safeStorage-encrypted credentials, no plaintext, no persistence when OS
+    encryption is unavailable).
+  - Added `proxy-probe.ts` (real HTTP CONNECT / SOCKS5 CONNECT tunnel to
+    `web.telegram.org:443`; distinguishes refused/timeout/auth/unavailable/
+    invalid).
+  - Added `proxy:get|save|test` IPC, preload methods and the Network/Proxy UI.
+  - `AccountController` now applies the manual proxy through Playwright's
+    `proxy` option and keeps the browser/profile/session after navigation
+    errors; Retry reuses the same context; relaunch only on proxy change or
+    closed page.
+- Added ADR-020 (manual proxy, supersedes ADR-013/018) and ADR-021 (browser
+  preservation); revised D-006.
+- Removed the obsolete unit tests for the deleted resolver/registry reader and
+  added parser/settings/probe/controller tests.
+- Verification: `npm run check` PASS (exit 0) — 106 unit, 12 integration (real
+  Chromium), 10 Electron E2E, build, typecheck, lint, format.
+- Real environment: probe reached Telegram through both local proxies;
+  Chromium loaded `https://web.telegram.org/k/` with HTTP 200 through
+  `socks5://127.0.0.1:10808`.
+- Commit `67cb669` (code + tests). Documentation commit follows with this entry;
+  check `git log -1`.
+- Phase 2 remains **Partially Verified**: real QR/2FA/session/restart and app
+  proxy-loss checks are Pending user execution. No Phase 3 work started.

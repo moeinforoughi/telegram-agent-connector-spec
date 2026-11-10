@@ -2,15 +2,18 @@
 
 Status: current implementation, reconciled against the code and tests in the
 repository. Phase 2 live verification is still pending; see
-`docs/phase2/PHASE2_REPORT.md`.
+`docs/phase2/PHASE2_REPORT.md`. The connection path is now the user's manual
+proxy configuration (ADR-020); system-proxy auto-detection was removed.
 
-Scope: Phase 0 feasibility spike, Phase 1 Electron foundation, Phase 2 Tasks 1–8.
+Scope: Phase 0 feasibility spike, Phase 1 Electron foundation, Phase 2 Tasks 1–8
+and the final manual-proxy/browser-lifecycle fix.
 This document records what is **actually implemented**, not only the target
 design in `ARCHITECTURE.md`. Where the implementation differs, the difference is
 listed in §9 with its reason and limits.
 
 Evidence base: commits `619c095` (Phase 1), `22789a8`–`cce43eb` (Phase 2 Tasks
-1–6), `07f20d9` (Task 7), and the automated suites listed in §8.
+1–6), `07f20d9` (Task 7), the Task 8 verification commits, and the manual proxy
+update (ADR-020/021).
 
 ## 1. Runtime topology
 
@@ -37,7 +40,7 @@ Chrome for Testing renders Telegram Web.
 | Browser | `src/core/browser/browser-manager.ts`, `browser-factory.ts`, `browser-types.ts`, `profile-paths.ts`, `profile-lock.ts` |
 | Telegram | `src/core/telegram/selectors/selector-map.ts`, `login-detector.ts`, `login-monitor.ts`, `navigation.ts`, `telegram-types.ts` |
 | Account | `src/core/account/account-store.ts`, `src/main/account-controller.ts`, `src/shared/account.ts` |
-| Network | `src/core/network/proxy-resolver.ts`, `windows-proxy.ts` |
+| Network | `src/core/network/proxy-server.ts` (parser), `proxy-settings.ts` (store/validation), `proxy-probe.ts` (real tunnel test), `src/main/secure-storage.ts` (safeStorage adapter) |
 | Renderer | `src/renderer/src/App.tsx`, `styles.css` |
 
 ## 3. Electron architecture
@@ -54,8 +57,8 @@ Chrome for Testing renders Telegram Web.
   `CONNECTOR_USER_DATA_DIR` can override it only when the app is not packaged.
   `config`, `profiles`, `logs`, `cache`, and `backups` are created eagerly.
 - On `whenReady`, creates one window, creates `AccountController` +
-  `BrowserManager` + `AccountStore`, registers the allowlisted IPC handlers,
-  then loads the renderer.
+  `BrowserManager` + `AccountStore` + `ProxySettingsStore`, registers the
+  allowlisted IPC handlers, then loads the renderer.
 - `window-all-closed` quits the app. `before-quit` prevents quit while a browser
   is running, awaits `controller.stop()`, then quits once (`quitReady` guard).
 - `uncaughtException` logs the error name and calls `app.exit(1)`;
@@ -68,11 +71,12 @@ Chrome for Testing renders Telegram Web.
 `nodeIntegration: false`, `webSecurity: true`, `webviewTag: false`,
 `allowRunningInsecureContent: false`, `spellcheck: false`.
 
-`src/preload/index.ts` exposes exactly one bridge, `window.api`, with six invoke
-functions and one subscription:
+`src/preload/index.ts` exposes exactly one bridge, `window.api`, with nine
+invoke functions and one subscription:
 
 `getAppInfo`, `getAccount`, `startAccount`, `stopAccount`, `openTelegram`,
-`removeAccount`, `onAccountStatus`.
+`removeAccount`, `getProxySettings`, `saveProxySettings`, `testProxy`,
+`onAccountStatus`.
 
 No `ipcRenderer`, `require`, `process`, `Buffer`, or module loader is exposed.
 The E2E suite asserts this at runtime.
@@ -254,13 +258,16 @@ auth/QR UI and the prompt reappears.
 - `getView()` returns a copy of the renderer-safe view (`id`, `label`, `status`,
   `loginState`, `error`, `createdAt`, `lastConnectedAt`). It contains no path.
 - `start()` de-duplicates concurrent calls, creates or loads the first stored
-  account, resolves the proxy once, launches the browser, navigates to Telegram
-  Web, sets `waiting_for_login`, and starts the monitor without blocking the
-  IPC response.
+  account, reads the manual proxy settings, launches the browser (or reuses it),
+  navigates to Telegram Web, sets `waiting_for_login`, and starts the monitor
+  without blocking the IPC response.
 - Status transitions: `disconnected → initializing → waiting_for_login /
   authenticating → connected`, with `error` on failure.
-- A navigation failure while a proxy is configured becomes `PROXY_ERROR`; other
-  failures are serialized by code.
+- A navigation failure while the manual proxy is enabled becomes `PROXY_ERROR`;
+  other failures are serialized by code.
+- After a successful launch, a navigation/network failure **keeps the browser,
+  profile and session** for Retry (ADR-021). A relaunch happens only when the
+  proxy configuration changed or the page was closed.
 - On `CONNECTED`, `lastConnectedAt` is persisted.
 - `stop()` closes the browser and returns to `disconnected`.
 - `remove(deleteProfile)` stops the browser, removes metadata, and deletes the
@@ -270,95 +277,91 @@ auth/QR UI and the prompt reappears.
 
 ### IPC, preload, dashboard
 
-The six channels and one event in §3 are the entire account API surface.
-`App.tsx` renders connector/browser/login status, the account label, the last
-connected time, an error alert, and the actions Add Account, Connect, Open
-Telegram, Disconnect, and Remove Account (with a native confirm). It renders no
-path, proxy credential, or session data.
+The nine channels and one event in §3 are the entire API surface (six account
+channels, three proxy channels). `App.tsx` renders connector/browser/login
+status, the account label, the last connected time, an error alert, the
+Network/Proxy form, and the actions Add Account, Connect, Open Telegram,
+Disconnect, and Remove Account (with a native confirm). It renders no path,
+proxy credential, or session data.
 
 ## 7. Network architecture
 
-### Resolution order
+### Manual proxy only
 
-`resolveProxy` in `proxy-resolver.ts` implements the order in ADR-013:
+The only proxy source is the user's saved manual configuration (ADR-020):
+`enabled`, `protocol` (`socks5` or `http`), `host`, `port`, and optional
+`username`/`password`. There is no system-proxy detection, no environment
+fallback, no vendor preset, and no silent direct fallback. When the proxy is
+disabled, Playwright receives no `proxy` option. When it is enabled and invalid,
+start fails with an error instead of connecting directly.
 
-1. `CONNECTOR_PROXY_SERVER` (manual) — authoritative.
-2. `SPIKE_PROXY` (Phase 0 compatibility) — authoritative.
-3. Windows WinINET registry, when `ProxyEnable` is set.
-4. `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` (case variants) plus `NO_PROXY`.
-5. Direct.
+### Validation
 
-An invalid explicit manual or Phase 0 value raises `PROXY_ERROR`; it never
-falls back silently. Registry/environment sources are best-effort. Windows
-`ProxyServer` values of the form `http=…;https=…;socks=…` are reduced with
-preference `https → http → socks/socks5`.
-
-### Validation and redaction
-
-`parseProxyServer` accepts `http`, `https`, and `socks5`, requires a host and an
-explicit port, rejects paths/queries/hashes and out-of-range ports, separates
-credentials, and normalizes the server to `scheme://host:port`.
-`redactProxyServer` strips userinfo. Proxy credentials are kept out of logs,
-IPC, and persisted data. `describeProxy` logs only source, mode, redacted server,
-and whether auth is required.
-
-### Windows registry reader
-
-`windows-proxy.ts` runs `reg.exe query HKCU\...\Internet Settings` for
-`ProxyEnable`, `ProxyServer`, and `ProxyOverride`. It parses the
-`REG_SZ`/`REG_EXPAND_SZ`/`DWORD` value column. **WinHTTP is intentionally not
-read** because Chromium uses WinINET, not the service proxy.
+`proxy-server.ts` parses `http`/`https`/`socks5` values with an explicit host and
+port, rejects paths, queries, and out-of-range ports, and keeps credentials
+separate from the server URL. `proxy-settings.ts` normalizes protocol/host/port,
+trims the username, rejects control characters and over-long values, and rejects
+a password without a username.
 
 ### Application to Chromium
 
-`toPlaywrightProxy` maps the resolution to Playwright's `proxy` option
-(`server`, `bypass`, `username`, `password`). Chromium receives
-`--proxy-server=…` plus `--proxy-bypass-list=…`; credentials are supplied by
-Playwright. The OS proxy configuration is never modified.
+`toPlaywrightProxyConfig` returns Playwright's official `proxy` option:
+`{ server: "<scheme>://<host>:<port>", username, password }`. Credentials are
+separate fields, never embedded in the URL. Chromium receives
+`--proxy-server=...`; the OS proxy configuration is never modified.
 
-### Explicit versus system proxy
+### Persistence and credential protection
 
-Phase 0 succeeded with an explicit `SPIKE_PROXY`; automatic inheritance was not
-proven. Phase 2 reads the Windows setting and passes it explicitly, so the
-connector controls and reports the source. When resolution is `direct`, no
-proxy argument is passed and Chromium may still apply its own Windows proxy
-behavior; this is not attributed to a resolver source. Live proof of system
-proxy inheritance remains a Task 8 manual item.
+Settings live in `config/proxy.json`: enabled flag, protocol, host, port, and an
+optional encrypted credentials blob. The username/password pair is encrypted
+with Electron `safeStorage` (DPAPI on Windows) and stored as base64 ciphertext.
+If OS encryption is unavailable, credentials are not persisted at all and the UI
+shows that secure storage is unavailable. Passwords are never returned to the
+renderer (`hasPassword` only), logged, or stored in plain text.
+
+### Test Proxy
+
+`proxy-probe.ts` opens a real TCP tunnel through the configured proxy: HTTP
+`CONNECT` or SOCKS5 `CONNECT` to `web.telegram.org:443` by default. An open port
+alone is not success. Statuses are `success`, `connection_refused`, `timeout`,
+`auth_failed`, `proxy_unavailable`, and `invalid_config`. An open port that never
+answers the handshake times out.
 
 ### VPN / TUN
 
-There is no VPN or TUN detection. A TUN VPN affects traffic at the OS routing
-layer, outside this resolver. A VPN that configures WinINET appears as source
-`windows`. This behavior is untested in Phase 2.
+There is no VPN or TUN control. A system-level TUN affects routing outside the
+connector; the configured proxy is the only proxy the connector applies.
 
 ## 8. Testing architecture
 
-| Layer | Location | Count at Task 8 | What it proves |
+| Layer | Location | Count at Phase 2 final | What it proves |
 |---|---|---|---|
-| Unit | `tests/unit/` | 17 files / 103 tests | Pure logic: proxy resolution, registry parsing, lock, detector, monitor, store, controller, IPC, paths, windows, errors |
-| Integration | `tests/integration/` | 2 files / 11 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, bypass, proxy loss/recovery, Telegram HTML fixtures |
-| Electron E2E | `tests/e2e/` | 1 file / 8 tests | Real Electron: security invariants, preload surface, data paths, dashboard, Playwright in Main, navigation blocking, CSP, quit |
-| Live manual | none automated | 0 run | Real QR/2FA/session/restart/proxy behavior; requires the user |
+| Unit | `tests/unit/` | 18 files / 106 tests | Pure logic: proxy parsing/settings/probe, lock, detector, monitor, store, controller, IPC, paths, windows, errors |
+| Integration | `tests/integration/` | 2 files / 12 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, Telegram HTML fixtures |
+| Electron E2E | `tests/e2e/` | 1 file / 10 tests | Real Electron: security invariants, preload surface, data paths, dashboard, proxy form, proxy persistence + credential protection, Playwright in Main, navigation blocking, CSP, quit |
+| Live manual | user-run | 0 run | Real QR/2FA/session/restart through the user's proxy; requires the user |
 
 Commands and environment are recorded in `docs/handoff/RESUME_PROMPT.md`.
 Integration tests fail loudly (not skip) when the pinned Chromium is missing
 (`tests/integration/browser-env.ts`).
 
-Unit tests use fakes for `Page`, `BrowserContext`, launcher, clock, and proxy
-resolution. Integration tests use local HTTP servers and never contact Telegram.
-Task 8 added stale-lock recovery with a real Chromium and proxy-loss/recovery
-through a restartable local proxy. The E2E Playwright-in-Main test resolves the
-externalized package from `<appPath>/node_modules/playwright` through
-`process.mainModule.require`, because `app.evaluate` has no dynamic-import
-callback (ADR-019).
+Unit tests use fakes for `Page`, `BrowserContext`, launcher, clock, and account
+state; proxy probing is tested against local HTTP and SOCKS5 servers. Integration
+tests use local HTTP/SOCKS5 proxies and never contact Telegram. The proxy probe
+was also exercised against the user's two real local proxies (both reached
+`web.telegram.org:443`) and Telegram Web loaded with HTTP 200 through
+`socks5://127.0.0.1:10808`; QR/2FA remains manual. The E2E Playwright-in-Main
+test resolves the externalized package from `<appPath>/node_modules/playwright`
+through `process.mainModule.require`, because `app.evaluate` has no
+dynamic-import callback (ADR-019).
 
 ## 9. Divergences from the target architecture
 
 | # | Target (`ARCHITECTURE.md` / ADRs) | Implemented | Reason | Benefit | Limit | Impact | Test status |
 |---|---|---|---|---|---|---|---|
 | 1 | Playwright/Chromium bundled with the installer (ADR-007) | `playwright` is a runtime dependency; browsers come from `PLAYWRIGHT_BROWSERS_PATH` in dev | Phase 6 owns packaging; Phase 2 verifies the dev path | Fast iteration; electron-vite externalizes correctly | A fresh machine without the pinned browser fails at launch until `npx playwright install chromium` or the env var is set | Phase 6 must bundle Chromium and set the path | Dev path verified |
-| 2 | Proxy systems are abstracted behind the resolver | Chromium can still use its native Windows proxy when resolution is `direct` | Chromium defaults are not disabled | Organic system-proxy fallback | Source attribution can be wrong if the registry is unreadable | Report must not claim source when `direct` | Registry/env/apply/bypass tested; inheritance live-unproven |
-| 3 | Per-account serialized Task Queue | Single account; `BrowserManager.running` + `start()` promise serialize | Phase 2 is single-account | Simpler state machine | Stop-during-launch can leave a running browser while the view says disconnected (UI disables the buttons, IPC does not) | Phase 4 queue must close this gap | Not tested |
+| 2 | System Proxy First + Manual Fallback (ADR-013) | Manual proxy only; no system detection, no fallback (ADR-020) | User's Windows system proxy is unset while local proxies run; automatic detection produced `direct` and a network error | Deterministic, vendor-neutral, testable, no OS changes | User must configure the proxy once; nothing is auto-detected | Proxy UI + persistence + Test Proxy | Unit/integration/E2E; real local proxies verified |
+| 3 | Per-account serialized Task Queue | Single account; `BrowserManager.running` + `start()` promise serialize | Phase 2 is single-account | Simpler state machine | A stop during launch now closes the browser that arrives late, but there is still no queue | Phase 4 queue | Stop-during-launch path fixed in controller; queue not tested |
 | 4 | Account Registry, permissions, audit logger | JSON store + controller only | Later phases | Minimal MVP | No audit trail or policy enforcement yet | Phase 4/5 | Store tested; policy not implemented |
 | 5 | Account view reflects persisted metadata at launch | `getView()` starts at `EMPTY_VIEW`; the stored account is loaded on first `start()` | Task 6 kept view transitions connection-driven | No secret/path exposure | After a restart the dashboard shows "Add Account" even though an account exists; clicking it reconnects the stored account (no duplicate) | UI copy/labeling needs a Phase 3 fix | Initial empty view tested; restart UX not tested |
 | 6 | Named Pipe MCP bridge | Not implemented | Phase 5 | — | No agent integration yet | Future | — |
@@ -371,18 +374,19 @@ callback (ADR-019).
 
 - The renderer has no `require`, `process`, `Buffer`, `module`, or
   `ipcRenderer`; only `window.api` exists (E2E).
-- Only six allowlisted IPC channels are registered; untrusted senders and
+- Only nine allowlisted IPC channels are registered; untrusted senders and
   foreign URLs get `PERMISSION_DENIED` (unit).
-- IPC payloads are validated; a non-boolean `deleteProfile` gets
-  `INVALID_ARGUMENT` and never reaches the controller (unit + E2E).
+- IPC payloads are validated; a non-boolean `deleteProfile` or malformed proxy
+  payload gets `INVALID_ARGUMENT` and never reaches the services (unit + E2E).
 - Permission requests and new windows are denied; navigation to another URL is
   blocked (E2E).
 - The production CSP has no inline script, no external connect source, and no
   frame embedding (E2E).
 - `AccountView` carries no profile path, proxy credential, cookie, or token
   (unit + E2E string assertions).
-- Proxy credentials are redacted from descriptions and never persisted; only
-  error codes are logged (unit).
+- Proxy credentials never reach the renderer (`hasPassword` only), are never
+  embedded in the Playwright server URL, are never logged, and are encrypted
+  with OS secure storage or not persisted at all (unit + E2E file assertions).
 - Profile removal deletes data only with an explicit boolean confirmation
   (unit + UI confirm).
 - No `api_id`, `api_hash`, Bot Token, MTProto, Telethon, or GramJS exists in the
@@ -392,8 +396,12 @@ callback (ADR-019).
 
 - **`ELECTRON_RUN_AS_NODE=1`.** The DSH shell exports it (not User/Machine
   environment). Electron then runs as plain Node and rejects Playwright's
-  `--remote-debugging-port=0`, so E2E fails. It must be unset for the Electron
-  child process. No OS-level change is needed or made.
+  `--remote-debugging-port=0`. The E2E launcher strips it for the child process;
+  interactive `npm run dev` in that shell must unset it. No OS-level change is
+  needed or made.
+- **Proxy credentials.** On Windows, `safeStorage` normally uses DPAPI. If it is
+  unavailable, the store refuses to persist credentials and the UI warns; it
+  never writes them in plain text.
 - **`PLAYWRIGHT_BROWSERS_PATH`.** Product code never reads it. Playwright 1.65.0
   expects Chromium revision 1254 (Chrome for Testing 158.0.8127.18); the
   repository keeps it in gitignored `spike/.browsers`. The default

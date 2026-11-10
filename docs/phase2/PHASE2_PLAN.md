@@ -16,6 +16,12 @@ IPC.
 **Tech Stack:** Electron 45.2.3, Playwright 1.65.0 (Chrome for Testing
 158.0.8127.18), TypeScript 5.9.3, React 19.3.1, Vitest 5.1.0.
 
+> **Update 2026-11-10:** Task 2's automatic system-proxy resolver was superseded
+> by **Manual Proxy Configuration** (ADR-020). The resolver and the Windows
+> registry reader were removed; settings, Test Proxy and credential protection
+> are now explicit. The final implemented behavior is in
+> `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` §7.
+
 **Spec:** `TASKS/02_DESKTOP_SHELL.md`, `TASKS/03_BROWSER_LOGIN_SESSION.md`,
 Phase 2 instruction set supplied 2026-11-10.
 

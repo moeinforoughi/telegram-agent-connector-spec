@@ -73,6 +73,7 @@
 **ممنوع:** Hardcode کردن IP/Port، اسکن پورت‌های سیستم، ساخت Proxy Manager پیچیده، تغییر تنظیمات Proxy سایر برنامه‌ها، یا ثبت Credential پروکسی در Log.
 **وضعیت:** تصمیم پذیرفته شده؛ پیاده‌سازی و اثبات خودکاربودن استفاده از Proxy سیستم در Phase 2 (Browser Manager) انجام شود.
 **نکته Phase 0:** دسترسی مستقیم به Telegram مسدود بود و Phase 0 یک Proxy محلی را به‌صورت صریح به Playwright داد؛ استفاده خودکار از Proxy سیستم در Phase 0 اثبات نشده است.
+**وضعیت نهایی:** این ADR با ADR-020 جایگزین شد؛ تشخیص خودکار System Proxy از مسیر اتصال حذف شد.
 
 ## ADR-014 — Runtime Separation
 **تصمیم:** Electron Main از Node Runtime داخلی Electron استفاده کند. MCP Bridge در زمان بسته‌بندی یک Node.js مستقل و Pin شده همراه برنامه داشته باشد.
@@ -107,6 +108,7 @@
 **محدودیت:** وقتی Resolution برابر `direct` است، Chromium ممکن است همچنان Proxy سیستم ویندوز را خودش اعمال کند؛ این حالت به منبعی نسبت داده نمی‌شود. صحت خواندن Registry در محیط واقعی و Inheritance سیستم هنوز Live-تست نشده است. احراز هویت SOCKS5 با Chromium/Playwright تست نشده و VPN/TUN مدل نشده است.
 **اثر:** `src/core/network/proxy-resolver.ts`، `windows-proxy.ts`، `account-controller.ts`، `browser-factory.ts`.
 **وضعیت تست:** Unit برای Priority/Validation/Bypass/Auth/Redaction و Registry Parsing؛ Integration برای HTTP Proxy با Credential و Bypass؛ Live Pending.
+**وضعیت نهایی:** این ADR با ADR-020 جایگزین شد؛ Resolver و Windows Proxy Reader حذف شدند و فقط Parser ساده باقی ماند.
 
 ## ADR-019 — بارگذاری Playwright در E2E از Main و پرهیز از IPC تستی
 **تصمیم:** تست E2E برای اثبات بارگذاری Playwright در Electron Main از `process.mainModule.require("<appPath>/node_modules/playwright")` استفاده کند و هیچ Channel یا Self-Test مخصوص تست به Preload/Production اضافه نشود. برای اجرای E2E، متغیر `ELECTRON_RUN_AS_NODE` فقط در Environment فرزند حذف شود.
@@ -114,3 +116,19 @@
 **محدودیت:** `process.mainModule` در Node منسوخ (Deprecated) است و فقط در Main از نوع CJS کار می‌کند؛ این روش Test-Only است و اگر Electron Main به ESM منتقل شود باید جایگزین شود. `ELECTRON_RUN_AS_NODE` یک متغیر محیطی خارج از برنامه است و نباید در Windows به‌صورت دائمی تغییر کند.
 **اثر:** `tests/e2e/app.test.ts` و Environment اجرای تست.
 **وضعیت تست:** E2E سبز؛ محدودیت Runtime مستند شده است.
+
+## ADR-020 — Manual Proxy Configuration (جایگزین ADR-013 و ADR-018)
+**تصمیم:** تنها منبع Proxy، تنظیمات دستی کاربر است: Enable، Protocol (`SOCKS5`/`HTTP`)، Host، Port و Username/Password اختیاری. تنظیمات با `proxy` option رسمی Playwright به Browser Context داده شود؛ `server` بدون Credential و Username/Password به‌صورت فیلدهای جدا. UI شامل Test Proxy و Save Settings است. ذخیره‌سازی در `config/proxy.json` انجام می‌شود: فیلدهای غیرحساس Plain JSON، و Username/Password فقط با `safeStorage` (DPAPI در Windows) رمزنگاری می‌شوند؛ اگر رمزنگاری سیستم‌عامل در دسترس نباشد هیچ Credential ذخیره نمی‌شود. Test Proxy یک تونل واقعی TCP از طریق SOCKS5 `CONNECT` یا HTTP `CONNECT` به `web.telegram.org:443` باز می‌کند و صرف باز بودن Port را موفقیت نمی‌داند. هیچ تشخیص خودکار System Proxy، Fallback پنهان، Preset اختصاصی یا تغییر تنظیمات شبکه Windows وجود ندارد.
+**دلیل:** محیط کاربر Local Proxy دارد (V2RayN روی `127.0.0.1:10808` و Hiddify روی `127.0.0.1:12334`) اما Windows System Proxy تنظیم نشده است؛ Resolver قبلی `direct` را انتخاب می‌کرد و Telegram باز نمی‌شد. تنظیم دستی عمومی و صریح، مستقل از نام نرم‌افزار Proxy و قابل تست است.
+**روش فعلی:** `proxy-settings.ts` (Validation/Store/Build)، `proxy-probe.ts` (Probe واقعی)، `proxy-server.ts` (Parser)، کانال‌های `proxy:get|save|test`، بخش Network/Proxy در Renderer، و `AccountController`.
+**مزایا:** رفتار Deterministic، قابل تست با Proxy محلی، بدون Vendor Lock-in، بدون تغییر OS، و Errorهای متمایز (`connection_refused`، `timeout`، `auth_failed`، `proxy_unavailable`، `invalid_config`).
+**محدودیت:** احراز هویت SOCKS5 توسط Chromium/Playwright ممکن است پشتیبانی نشود؛ Probe آن را پشتیبانی می‌کند اما Navigation Chromium فقط برای SOCKS5 بدون Auth تست شده است. احراز هویت HTTP تست شده است. VPN/TUN مدل نمی‌شود. Test Proxy پیش‌فرض به `web.telegram.org:443` وابسته است؛ اگر Proxy سالم ولی Telegram مسدود باشد، تست ناموفق می‌شود.
+**اثر:** `src/core/network/*`، `src/main/index.ts`، `account-controller.ts`، `ipc-router.ts`، `preload/index.ts`، `renderer/src/App.tsx`، `shared/proxy.ts`.
+**وضعیت تست:** 106 Unit، 12 Integration، 10 E2E سبز؛ دو Proxy واقعی محلی به Telegram تونل دادند و Telegram Web از طریق `socks5://127.0.0.1:10808` با HTTP 200 بارگذاری شد. QR/2FA واقعی همچنان Pending Manual است.
+
+## ADR-021 — حفظ Browser و Session پس از خطای Navigation
+**تصمیم:** اگر Browser با موفقیت Launch شد و سپس Navigation به Telegram Web شکست خورد، Browser بسته نمی‌شود، Profile حذف نمی‌شود و Session Reset نمی‌شود. وضعیت Account به `error` با کد دقیق می‌رود و `start()` مجدد همان Context/Page را دوباره Navigate می‌کند. Relaunch فقط وقتی انجام می‌شود که تنظیمات Proxy تغییر کرده باشد یا Page بسته شده باشد. تنها `stop()` عمدی Browser را می‌بندد.
+**دلیل:** رفتار قبلی Browser را پس از خطای شبکه می‌بست و امکان Retry پس از رفع مشکل Proxy را از بین می‌برد.
+**محدودیت:** Retry خودکار در Loop نیست؛ کاربر باید دکمه Reconnect/Retry را بزند. Crash شدن Page فقط Log می‌شود و Context را نمی‌بندد.
+**اثر:** `src/main/account-controller.ts` و رفتار Retry در UI.
+**وضعیت تست:** Unit برای Navigation Error/Retry/Proxy Change و Integration برای باز ماندن Process و Page پس از خطای Proxy.

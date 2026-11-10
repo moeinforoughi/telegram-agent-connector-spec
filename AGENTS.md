@@ -21,6 +21,8 @@
 - هر Profile فقط یک Browser Context فعال دارد.
 - عملیات هر Account سریالی اجرا می‌شوند.
 - Browserها Lazy-start شوند؛ در شروع برنامه همه اکانت‌ها باز نشوند.
+- Proxy فقط از تنظیمات دستی کاربر اعمال شود و با API رسمی Playwright به Browser
+  Context داده شود. Credential جدا از URL باشد.
 
 ## عدم انجام
 - Telegram Bot API، MTProto، Telethon، GramJS، `api_id`، `api_hash` یا Bot Token اضافه نکن.
@@ -31,6 +33,11 @@
 - از سرویس ابری برای ذخیره Profile یا پیام‌ها استفاده نکن.
 - محتوای پیام‌ها را بدون مجوز و رضایت لازم به LLM ارسال نکن.
 - ابزار Bulk Messaging، Spam، Mass Invite یا دورزدن Rate Limit نساز.
+- Proxy سیستم را به‌صورت خودکار تشخیص نده یا در مسیر اتصال استفاده نکن.
+- Fallback پنهان به Direct یا Proxy دیگر انجام نده؛ خطا را واضح نشان بده.
+- Integration اختصاصی برای V2RayN، Hiddify یا هر نرم‌افزار Proxy نساز و تنظیمات
+  شبکه Windows را تغییر نده.
+- Credential پروکسی را در URL، Log، IPC، مستندات یا فایل Plain Text قرار نده.
 
 ## قواعد کدنویسی
 - TypeScript strict فعال باشد.
