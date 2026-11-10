@@ -31,15 +31,19 @@ Before changing anything:
 
 ## Current state (2026-11-10)
 
-Phase 2 is **Partially Verified**: all automated tests pass and the manual proxy
-configuration is implemented, but the live QR/2FA/session/restart/proxy checklist
-in `docs/phase2/PHASE2_REPORT.md` §8 is Pending and needs the user. Tasks 1–8 and
-the final proxy fix (`67cb669`) are committed. Phase 3 is not authorized.
+Phase 2 is **Partially Verified**: all automated tests pass (108 unit, 13
+integration, 11 E2E) and the manual proxy configuration is implemented, but the
+live QR/2FA/session/restart/proxy checklist in `docs/phase2/PHASE2_REPORT.md` §8
+is Pending and needs the user. Tasks 1–8, the manual proxy fix (`67cb669`) and
+the saved-proxy application fix (`51714cf`) are committed. Phase 3 is not
+authorized.
 
 Proxy rules (permanent): the connector uses only the user's saved manual proxy
 (SOCKS5/HTTP, host, port, optional credentials). There is no system-proxy
-detection and no silent fallback. Credentials are OS-encrypted or not stored.
-Do not reintroduce `windows-proxy`-style detection; see ADR-020/021.
+detection and no silent fallback. The Enable toggle persists immediately; the
+controller logs the stored proxy metadata (never credentials) and fails closed
+if enabled but unusable. Credentials are OS-encrypted (async safeStorage) or not
+stored. Do not reintroduce `windows-proxy`-style detection; see ADR-020/021.
 
 ## Test commands
 

@@ -293,7 +293,9 @@ The only proxy source is the user's saved manual configuration (ADR-020):
 `username`/`password`. There is no system-proxy detection, no environment
 fallback, no vendor preset, and no silent direct fallback. When the proxy is
 disabled, Playwright receives no `proxy` option. When it is enabled and invalid,
-start fails with an error instead of connecting directly.
+start fails closed with `PROXY_ERROR` instead of connecting directly. The
+controller logs `proxy.enabled`, protocol, host, port, and mode (never
+credentials) so the applied routing can be verified from the console.
 
 ### Validation
 
@@ -314,10 +316,13 @@ separate fields, never embedded in the URL. Chromium receives
 
 Settings live in `config/proxy.json`: enabled flag, protocol, host, port, and an
 optional encrypted credentials blob. The username/password pair is encrypted
-with Electron `safeStorage` (DPAPI on Windows) and stored as base64 ciphertext.
-If OS encryption is unavailable, credentials are not persisted at all and the UI
-shows that secure storage is unavailable. Passwords are never returned to the
-renderer (`hasPassword` only), logged, or stored in plain text.
+with the asynchronous Electron `safeStorage` API (`encryptStringAsync` /
+`decryptStringAsync`, DPAPI on Windows) and stored as base64 ciphertext. If OS
+encryption is unavailable, credentials are not persisted at all and the UI shows
+that secure storage is unavailable. Passwords are never returned to the renderer
+(`hasPassword` only), logged, or stored in plain text. The UI persists the
+enabled flag immediately when the toggle changes, and an initial settings read
+cannot overwrite form edits made in the meantime.
 
 ### Test Proxy
 
@@ -336,9 +341,9 @@ connector; the configured proxy is the only proxy the connector applies.
 
 | Layer | Location | Count at Phase 2 final | What it proves |
 |---|---|---|---|
-| Unit | `tests/unit/` | 18 files / 106 tests | Pure logic: proxy parsing/settings/probe, lock, detector, monitor, store, controller, IPC, paths, windows, errors |
-| Integration | `tests/integration/` | 2 files / 12 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, Telegram HTML fixtures |
-| Electron E2E | `tests/e2e/` | 1 file / 10 tests | Real Electron: security invariants, preload surface, data paths, dashboard, proxy form, proxy persistence + credential protection, Playwright in Main, navigation blocking, CSP, quit |
+| Unit | `tests/unit/` | 18 files / 108 tests | Pure logic: proxy parsing/settings/probe, lock, detector, monitor, store, controller, IPC, paths, windows, errors |
+| Integration | `tests/integration/` | 2 files / 13 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, saved-settings→Playwright, Telegram HTML fixtures |
+| Electron E2E | `tests/e2e/` | 1 file / 11 tests | Real Electron: security invariants, preload surface, data paths, dashboard, proxy form, immediate enable persistence, proxy persistence + credential protection, Playwright in Main, navigation blocking, CSP, quit |
 | Live manual | user-run | 0 run | Real QR/2FA/session/restart through the user's proxy; requires the user |
 
 Commands and environment are recorded in `docs/handoff/RESUME_PROMPT.md`.

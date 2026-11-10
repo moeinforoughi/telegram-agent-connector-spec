@@ -125,6 +125,7 @@
 **محدودیت:** احراز هویت SOCKS5 توسط Chromium/Playwright ممکن است پشتیبانی نشود؛ Probe آن را پشتیبانی می‌کند اما Navigation Chromium فقط برای SOCKS5 بدون Auth تست شده است. احراز هویت HTTP تست شده است. VPN/TUN مدل نمی‌شود. Test Proxy پیش‌فرض به `web.telegram.org:443` وابسته است؛ اگر Proxy سالم ولی Telegram مسدود باشد، تست ناموفق می‌شود.
 **اثر:** `src/core/network/*`، `src/main/index.ts`، `account-controller.ts`، `ipc-router.ts`، `preload/index.ts`، `renderer/src/App.tsx`، `shared/proxy.ts`.
 **وضعیت تست:** 106 Unit، 12 Integration، 10 E2E سبز؛ دو Proxy واقعی محلی به Telegram تونل دادند و Telegram Web از طریق `socks5://127.0.0.1:10808` با HTTP 200 بارگذاری شد. QR/2FA واقعی همچنان Pending Manual است.
+**به‌روزرسانی 2026-11-10 (`51714cf`):** مشخص شد فایل واقعی `proxy.json` مقدار `enabled:false` داشت؛ مسیر Controller→Playwright درست بود و مشکل از Persist شدن Toggle در UI بود. Enable اکنون بلافاصله ذخیره می‌شود، Load اولیه State فرم را بازنویسی نمی‌کند، Controller مقدار واقعی Proxy را Log می‌کند، و در حالت enabled نامعتبر Fail-Closed است. `safeStorage` به API Async مهاجرت کرد. تست‌ها: 108 Unit، 13 Integration، 11 E2E.
 
 ## ADR-021 — حفظ Browser و Session پس از خطای Navigation
 **تصمیم:** اگر Browser با موفقیت Launch شد و سپس Navigation به Telegram Web شکست خورد، Browser بسته نمی‌شود، Profile حذف نمی‌شود و Session Reset نمی‌شود. وضعیت Account به `error` با کد دقیق می‌رود و `start()` مجدد همان Context/Page را دوباره Navigate می‌کند. Relaunch فقط وقتی انجام می‌شود که تنظیمات Proxy تغییر کرده باشد یا Page بسته شده باشد. تنها `stop()` عمدی Browser را می‌بندد.

@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (manual proxy configuration implemented; live QR pending)
+Last updated: 2026-11-10 (saved-proxy application fixed; live QR pending)
 
 ## Project Goal
 
@@ -112,8 +112,15 @@ code, and test evidence win.
 - Final proxy fix (2026-11-10, commit `67cb669`): manual Network/Proxy UI with
   SOCKS5/HTTP, real Test Proxy tunnel, `proxy.json` persistence, safeStorage
   credential encryption, removal of system-proxy code, and browser preservation
-  on navigation errors. `npm run check` passes: 106 unit, 12 integration, 10
-  E2E, build, typecheck, lint, format.
+  on navigation errors.
+- Saved-proxy fix (2026-11-10, commit `51714cf`): the real `proxy.json` had
+  `enabled:false` while the form looked enabled. The controller/Playwright path
+  was correct; the UI persisted only on Save and could lose a toggle to the
+  initial async load. Enable now persists immediately, the initial load cannot
+  overwrite edits, the controller logs the actual proxy metadata (no
+  credentials), and start is fail-closed when the proxy is enabled but unusable.
+  `safeStorage` moved to the async API. `npm run check` passes: 108 unit, 13
+  integration, 11 E2E, build, typecheck, lint, format.
 - Real environment evidence (2026-11-10): the probe reached
   `web.telegram.org:443` through both local proxies (`127.0.0.1:10808` and
   `127.0.0.1:12334`), and Chromium loaded `https://web.telegram.org/k/` with
@@ -153,6 +160,7 @@ code, and test evidence win.
 | `9c2d0d2` | Implemented architecture audit and ADR-015…019 |
 | `582c01a` | Task 8 automated verification tests |
 | `67cb669` | Manual proxy configuration, secure credentials, browser preservation |
+| `51714cf` | Persist the Enable toggle and apply the saved proxy to Chromium |
 
 ## Key Documents
 

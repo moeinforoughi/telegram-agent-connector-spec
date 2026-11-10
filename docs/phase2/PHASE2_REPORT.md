@@ -6,7 +6,8 @@ complete.
 
 Date: 2026-11-10
 Branch: `main`
-Final proxy implementation commit: `67cb669`
+Final proxy implementation commit: `51714cf` (saved-proxy application fix)
+Earlier proxy implementation commit: `67cb669`
 Earlier automated verification commit: `582c01a`
 Architecture reference: `docs/architecture/IMPLEMENTED_ARCHITECTURE.md`
 
@@ -34,6 +35,7 @@ errors (ADR-021).
 | `582c01a` | Task 8 automated verification tests |
 | `378f294` | Audit scope alignment |
 | `67cb669` | Manual proxy configuration, secure credentials, browser preservation |
+| `51714cf` | Persist the Enable toggle and apply the saved proxy to Chromium |
 
 No commit was amended, rebased, squashed, or pushed.
 
@@ -48,17 +50,17 @@ $env:PLAYWRIGHT_BROWSERS_PATH = "spike/.browsers"
 npm run check
 ```
 
-Result: **exit 0** on commit `67cb669`.
+Result: **exit 0** on commit `51714cf`.
 
 | Stage | Command | Result |
 |---|---|---|
 | Typecheck | `tsc --noEmit` | Pass |
 | Lint | `eslint .` | Pass |
 | Format | `prettier --check .` | Pass |
-| Unit | `vitest run tests/unit` | 18 files / 106 tests pass |
-| Integration | `vitest run tests/integration` | 2 files / 12 tests pass (real Chromium) |
+| Unit | `vitest run tests/unit` | 18 files / 108 tests pass |
+| Integration | `vitest run tests/integration` | 2 files / 13 tests pass (real Chromium) |
 | Build | `electron-vite build` | Pass |
-| Electron E2E | `vitest run tests/e2e` | 1 file / 10 tests pass |
+| Electron E2E | `vitest run tests/e2e` | 1 file / 11 tests pass |
 
 ## 4. Manual proxy configuration
 
@@ -113,6 +115,8 @@ silent open port times out. Reported statuses:
 | Credential protection | Unit + E2E file assertions; safeStorage unavailable path | Pass |
 | Chromium navigation through proxy | Integration HTTP and SOCKS5; real Telegram 200 via `10808` | Pass |
 | Browser preservation after navigation error | Controller unit + integration process/page assertions | Pass |
+| Saved settings reach Playwright | Integration: store → `toPlaywrightProxyConfig` → persistent Chromium → proxy request | Pass |
+| Enable toggle persists without Save | E2E reads `proxy.json` after only checking the box | Pass |
 | Real Telegram QR login / 2FA | Requires the user | Pending manual |
 | Real proxy loss/recovery in the app | Requires the user | Pending manual |
 
@@ -127,6 +131,48 @@ silent open port times out. Reported statuses:
 - Live DOM inspection: `#auth-pages` and `#auth-pages canvas` exist after
   Telegram Web boots, so the centralized selectors still recognize the login/QR
   page.
+
+## 5.1 Saved-proxy root cause and fix (2026-11-10)
+
+Observed on the real machine: Test Proxy and Save succeeded, but Add Account
+logged `starting browser (direct)`, followed by `NETWORK_ERROR`; the stored
+`config/proxy.json` actually contained `"enabled": false`.
+
+Findings:
+
+- The Add Account path itself was correct: the controller reads the stored
+  settings, `toPlaywrightProxyConfig` builds
+  `{ server: "socks5://127.0.0.1:10808" }`, and the launcher passes it to
+  `chromium.launchPersistentContext`. A clean E2E save/reload passes.
+- The real mismatch was UI state versus disk: the form was persisted only on an
+  explicit Save, and the asynchronous initial settings read could overwrite a
+  toggle made before it resolved. A checked "Enable proxy" box could therefore
+  coexist with `enabled:false` on disk.
+- The old log line printed only `direct`/`proxy` and hid the actual stored
+  values, which made the mismatch invisible.
+
+Fix in `51714cf`:
+
+- Checking/unchecking Enable Proxy now persists immediately; Save is no longer
+  required for the enabled flag.
+- The initial settings response cannot overwrite form edits anymore.
+- The controller logs `proxy.enabled`, `proxy.protocol`, `proxy.host`,
+  `proxy.port`, and `mode`; credentials are never logged.
+- Fail-closed: if the proxy is enabled but cannot be applied, start fails with
+  `PROXY_ERROR` instead of launching Chromium directly.
+- `BROWSER_CLOSED` is emitted only when the Chromium context really closes;
+  BrowserManager now logs `context closed`. Navigation errors continue to keep
+  the browser, profile and session open for Retry.
+- `safeStorage` migrated to the asynchronous API
+  (`isAsyncEncryptionAvailable`, `encryptStringAsync`, `decryptStringAsync`);
+  the deprecation warning is gone.
+- New tests: UI toggle auto-persistence (E2E), saved settings →
+  Playwright → Chromium (integration), proxy log metadata and fail-closed
+  (unit).
+
+Because the existing `proxy.json` on the development machine has
+`"enabled": false`, the user must enable the proxy once more; with this fix it is
+written immediately.
 
 ## 6. Browser lifecycle
 
@@ -171,9 +217,9 @@ npm run dev
 
 | # | Step | Expected |
 |---|---|---|
-| 1 | Open Network / Proxy, enable it, choose SOCKS5, host `127.0.0.1`, port `10808` | Fields accept the values |
+| 1 | Open Network / Proxy, enable it, choose SOCKS5, host `127.0.0.1`, port `10808` | Fields accept the values; enabling persists immediately |
 | 2 | Click Test Proxy | “Proxy connection succeeded” |
-| 3 | Click Save Settings | “Proxy settings saved.” |
+| 3 | Click Save Settings (optional for the enable flag) | “Proxy settings saved.” |
 | 4 | Click Add Account | Visible Chromium opens; Telegram login page loads (no network error) |
 | 5 | Scan the QR with the phone | Desktop session logs in |
 | 6 | Complete 2FA inside Telegram Web if requested | Login proceeds |
@@ -208,7 +254,7 @@ Notes:
 | Real 2FA | Pending manual |
 | Session persistence with a real account | Pending manual |
 | Electron/Windows restart | Pending manual |
-| Automated tests pass | Yes (`67cb669`) |
+| Automated tests pass | Yes (`51714cf`) |
 | Runtime limits documented | Yes |
 | Architecture docs updated | Yes |
 | Handoff complete | Yes |

@@ -176,3 +176,31 @@
   check `git log -1`.
 - Phase 2 remains **Partially Verified**: real QR/2FA/session/restart and app
   proxy-loss checks are Pending user execution. No Phase 3 work started.
+
+## 2026-11-10 — Saved proxy not applied to browser (fix)
+
+- User saw `[account] starting browser (direct)` + `NETWORK_ERROR` while the UI
+  showed the proxy enabled. Real
+  `%LOCALAPPDATA%\UnofficialTelegramAgentConnector\config\proxy.json` contained
+  `"enabled": false`.
+- Confirmed the controller → `toPlaywrightProxyConfig` →
+  `launchPersistentContext` path is correct; the flag was never persisted as
+  true. The UI only saved on explicit Save, and the initial async settings read
+  could overwrite a toggle made before it resolved.
+- Fixes in `51714cf`:
+  - Enable toggle persists immediately; initial load cannot overwrite edited
+    form state.
+  - Controller logs `proxy.enabled`, protocol, host, port, mode (no
+    credentials); fail-closed if enabled but unusable.
+  - BrowserManager logs `context closed`; navigation errors still keep the
+    browser/profile/session for Retry.
+  - `safeStorage` moved to the async API; deprecation warning removed.
+  - New E2E (toggle auto-persist), integration (saved settings → Playwright →
+    persistent Chromium) and unit (log metadata, fail-closed) tests.
+- Verification on `51714cf`: `npm run check` PASS — 108 unit, 13 integration,
+  11 E2E, build, typecheck, lint, format; no safeStorage deprecation warning.
+- The existing `proxy.json` on this machine is still `enabled:false`; the user
+  must enable it once more (it now writes immediately) and rerun the live
+  checklist.
+- Documentation commit follows with this entry; check `git log -1`.
+- Phase 2 remains **Partially Verified**; no Phase 3 work started.
