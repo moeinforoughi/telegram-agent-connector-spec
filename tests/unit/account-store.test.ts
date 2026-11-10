@@ -18,17 +18,25 @@ afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-function store(): AccountStore {
+function store(ids: readonly string[] = ["11111111-2222-3333-4444-555555555555"]): AccountStore {
+  let index = 0;
   return new AccountStore(file, profilesRoot, {
     now: () => new Date("2026-11-10T10:00:00.000Z"),
-    id: () => "11111111-2222-3333-4444-555555555555",
+    id: () => ids[index++] ?? `generated-${index}`,
   });
+}
+
+function backups(): string[] {
+  return fs
+    .readdirSync(path.dirname(file))
+    .filter((name) => name.startsWith("accounts.json.corrupt-"));
 }
 
 describe("AccountStore", () => {
   it("returns an empty list when the file does not exist", () => {
-    expect(store().load()).toEqual([]);
+    expect(store().list()).toEqual([]);
     expect(store().getFirst()).toBeUndefined();
+    expect(store().getById("missing")).toBeUndefined();
   });
 
   it("creates one account with a generated id and profile directory", () => {
@@ -46,12 +54,55 @@ describe("AccountStore", () => {
     expect(store().load()).toHaveLength(1);
   });
 
-  it("persists the account atomically and reloads it", () => {
-    store().create();
+  it("creates and lists three isolated accounts", () => {
+    const ids = [
+      "11111111-1111-1111-1111-111111111111",
+      "22222222-2222-2222-2222-222222222222",
+      "33333333-3333-3333-3333-333333333333",
+    ];
+    const subject = store(ids);
+
+    const first = subject.create("Personal");
+    const second = subject.create("Work");
+    const third = subject.create("Test");
+
+    expect(subject.list().map((account) => account.label)).toEqual(["Personal", "Work", "Test"]);
+    expect(new Set(subject.list().map((account) => account.profileDir)).size).toBe(3);
+    expect(subject.getById(first.id)?.label).toBe("Personal");
+    expect(subject.getById(second.id)?.profileDir).not.toBe(first.profileDir);
+    expect(subject.getById(third.id)?.profileDir).not.toBe(second.profileDir);
+    for (const account of subject.list()) {
+      expect(fs.existsSync(account.profileDir)).toBe(true);
+    }
+  });
+
+  it("persists atomically and reloads all accounts", () => {
+    const subject = store(["11111111-1111-1111-1111-111111111111"]);
+    subject.create("One");
     const reloaded = new AccountStore(file, profilesRoot).load();
 
     expect(reloaded).toHaveLength(1);
     expect(fs.existsSync(`${file}.tmp`)).toBe(false);
+  });
+
+  it("renames an account without changing its id or profile", () => {
+    const subject = store();
+    const account = subject.create("Old");
+
+    const renamed = subject.rename(account.id, "  New label  ");
+
+    expect(renamed).toMatchObject({ id: account.id, label: "New label" });
+    expect(subject.getById(account.id)?.profileDir).toBe(account.profileDir);
+    expect(subject.rename("missing", "x")).toBeUndefined();
+  });
+
+  it("rejects empty and over-long labels", () => {
+    const subject = store();
+    const account = subject.create();
+
+    expect(() => subject.rename(account.id, "   ")).toThrow(/label is required/);
+    expect(() => subject.rename(account.id, "x".repeat(81))).toThrow(/too long/);
+    expect(() => subject.create("")).toThrow(/label is required/);
   });
 
   it("updates lastConnectedAt without changing other fields", () => {
@@ -69,19 +120,37 @@ describe("AccountStore", () => {
     expect(fs.existsSync(account.profileDir)).toBe(true);
   });
 
-  it("refuses to overwrite a corrupted store", () => {
+  it("backs up a corrupt registry and recovers with an empty list", () => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, "{ not json");
 
-    expect(() => store().load()).toThrow("Account store is corrupted");
-    expect(fs.readFileSync(file, "utf8")).toBe("{ not json");
+    expect(store().load()).toEqual([]);
+    expect(fs.existsSync(file)).toBe(false);
+    expect(backups()).toHaveLength(1);
+    const backup = backups()[0];
+    if (!backup) throw new Error("Missing corrupt backup");
+    expect(fs.readFileSync(path.join(path.dirname(file), backup), "utf8")).toBe("{ not json");
   });
 
-  it("rejects entries that do not have the required fields", () => {
+  it("backs up a registry with invalid entries or a foreign profile path", () => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify([{ id: "x" }]));
+    expect(store().load()).toEqual([]);
+    expect(backups()).toHaveLength(1);
 
-    expect(() => store().load()).toThrow("Account store is corrupted");
+    fs.writeFileSync(
+      file,
+      JSON.stringify([
+        {
+          id: "11111111-1111-1111-1111-111111111111",
+          label: "Injected",
+          profileDir: "C:\\outside",
+          createdAt: "2026-11-10T10:00:00.000Z",
+        },
+      ]),
+    );
+    expect(store().load()).toEqual([]);
+    expect(backups()).toHaveLength(2);
   });
 
   it("keeps the stored profile path out of logs and views", () => {

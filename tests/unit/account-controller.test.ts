@@ -13,6 +13,7 @@ import type { LoginDetection } from "../../src/core/telegram/telegram-types";
 let root: string;
 let profilesRoot: string;
 let store: AccountStore;
+let accountId: string;
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "tac-controller-"));
@@ -21,6 +22,7 @@ beforeEach(() => {
     now: () => new Date("2026-11-10T10:00:00.000Z"),
     id: () => "11111111-2222-3333-4444-555555555555",
   });
+  accountId = store.create().id;
 });
 
 afterEach(() => {
@@ -83,6 +85,7 @@ function controller(
   return new AccountController({
     store,
     browser: browserDriver,
+    accountId,
     getProxySettings: options.getProxySettings ?? (async () => options.proxy ?? direct),
     createProbe: () => ({
       url: () => "https://web.telegram.org/k/",
@@ -98,7 +101,7 @@ function controller(
 }
 
 describe("AccountController", () => {
-  it("creates an account, launches the browser, and becomes connected", async () => {
+  it("starts the stored account, launches the browser, and becomes connected", async () => {
     const driver = browser();
     const views: AccountView[] = [];
     const subject = controller(driver, { views });
@@ -135,6 +138,7 @@ describe("AccountController", () => {
     const subject = new AccountController({
       store,
       browser: driver,
+      accountId,
       getProxySettings: async () => {
         throw new AppError("PROXY_ERROR", "Invalid proxy server");
       },
@@ -289,32 +293,5 @@ describe("AccountController", () => {
 
     expect(subject.getView().status).toBe("error");
     expect(subject.getView().error?.code).toBe("BROWSER_CLOSED");
-  });
-
-  it("removes metadata without deleting the profile by default", async () => {
-    const driver = browser();
-    const subject = controller(driver);
-    await subject.start();
-    await vi.waitFor(() => expect(subject.getView().status).toBe("connected"));
-    const profileDir = store.getFirst()?.profileDir;
-
-    await subject.remove(false);
-
-    expect(store.load()).toEqual([]);
-    expect(profileDir && fs.existsSync(profileDir)).toBe(true);
-    expect(subject.getView().id).toBeNull();
-  });
-
-  it("deletes the profile only when explicitly confirmed", async () => {
-    const driver = browser();
-    const subject = controller(driver);
-    await subject.start();
-    await vi.waitFor(() => expect(subject.getView().status).toBe("connected"));
-    const profileDir = store.getFirst()?.profileDir;
-
-    await subject.remove(true);
-
-    expect(profileDir && fs.existsSync(profileDir)).toBe(false);
-    expect(store.load()).toEqual([]);
   });
 });

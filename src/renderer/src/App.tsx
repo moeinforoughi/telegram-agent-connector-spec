@@ -12,8 +12,6 @@ import {
 } from "../../shared/proxy";
 import type { AppInfo } from "../../shared/types";
 
-const EMPTY_VIEW: AccountView = { id: null, label: "No account", status: "disconnected" };
-
 const STATUS_LABELS: Record<AccountStatus, string> = {
   disconnected: "Disconnected",
   initializing: "Starting browser",
@@ -107,16 +105,28 @@ function buildProxyRequest(form: ProxyForm): SaveProxySettingsRequest | null {
 }
 
 export function App() {
-  const [view, setView] = useState<AccountView>(EMPTY_VIEW);
+  const [accounts, setAccounts] = useState<AccountView[]>([]);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [proxy, setProxy] = useState<ProxyForm>(EMPTY_PROXY_FORM);
   const [proxyBusy, setProxyBusy] = useState<"save" | "test" | null>(null);
   const [proxyMessage, setProxyMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(
     null,
   );
   const proxyTouched = useRef(false);
+
+  const updateAccount = useCallback((next: AccountView) => {
+    setAccounts((current) => {
+      const index = current.findIndex((account) => account.id === next.id);
+      if (index < 0) return [...current, next];
+      const copy = [...current];
+      copy[index] = next;
+      return copy;
+    });
+  }, []);
 
   useEffect(() => {
     if (!window.api) {
@@ -128,9 +138,9 @@ export function App() {
     window.api.getAppInfo().then((result) => {
       if (active && result.ok) setInfo(result.data);
     });
-    window.api.getAccount().then((result) => {
+    window.api.listAccounts().then((result) => {
       if (!active) return;
-      if (result.ok) setView(result.data);
+      if (result.ok) setAccounts(result.data);
       else setFailure(result.error.message);
     });
     window.api.getProxySettings().then((result) => {
@@ -140,37 +150,96 @@ export function App() {
       if (!result.ok) setProxyMessage({ kind: "error", text: result.error.message });
     });
     const unsubscribe = window.api.onAccountStatus((next) => {
-      if (active) setView(next);
+      if (active) updateAccount(next);
     });
 
     return () => {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [updateAccount]);
 
-  const run = useCallback(async (action: () => Promise<IpcResult<AccountView>>) => {
-    setBusy(true);
+  const createAccount = useCallback(async () => {
+    setCreating(true);
     setFailure(null);
     try {
-      const result = await action();
-      if (result.ok) setView(result.data);
-      else setFailure(result.error.message);
+      const label = newLabel.trim();
+      const result = await window.api.createAccount(label ? { label } : {});
+      if (result.ok) {
+        updateAccount(result.data);
+        setNewLabel("");
+      } else {
+        setFailure(result.error.message);
+      }
     } catch {
-      setFailure("The operation failed.");
+      setFailure("Could not create the account.");
     } finally {
-      setBusy(false);
+      setCreating(false);
+    }
+  }, [newLabel, updateAccount]);
+
+  const runAccount = useCallback(
+    async (id: string, action: () => Promise<IpcResult<AccountView>>) => {
+      setBusyId(id);
+      setFailure(null);
+      try {
+        const result = await action();
+        if (result.ok) updateAccount(result.data);
+        else setFailure(result.error.message);
+      } catch {
+        setFailure("The account operation failed.");
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [updateAccount],
+  );
+
+  const removeAccount = useCallback(async (account: AccountView) => {
+    if (!account.id) return;
+    const confirmed = window.confirm(
+      `Remove "${account.label}"? This deletes its local browser profile and cached Telegram session.`,
+    );
+    if (!confirmed) return;
+
+    setBusyId(account.id);
+    setFailure(null);
+    try {
+      const result = await window.api.removeAccount({
+        id: account.id,
+        deleteProfile: true,
+      });
+      if (result.ok) {
+        setAccounts((current) => current.filter((entry) => entry.id !== account.id));
+      } else {
+        setFailure(result.error.message);
+      }
+    } catch {
+      setFailure("Could not remove the account.");
+    } finally {
+      setBusyId(null);
     }
   }, []);
 
-  const removeAccount = useCallback(() => {
-    const confirmed = window.confirm(
-      "Remove this account? This deletes its local browser profile and cached Telegram session.",
-    );
-    if (confirmed) {
-      void run(() => window.api.removeAccount({ deleteProfile: true }));
-    }
-  }, [run]);
+  const renameAccount = useCallback(
+    async (account: AccountView) => {
+      if (!account.id) return;
+      const label = window.prompt("Account label", account.label);
+      if (label === null) return;
+      setBusyId(account.id);
+      setFailure(null);
+      try {
+        const result = await window.api.renameAccount({ id: account.id, label });
+        if (result.ok) updateAccount(result.data);
+        else setFailure(result.error.message);
+      } catch {
+        setFailure("Could not rename the account.");
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [updateAccount],
+  );
 
   const updateProxy = useCallback((patch: Partial<ProxyForm>) => {
     proxyTouched.current = true;
@@ -251,114 +320,145 @@ export function App() {
     }
   }, [proxy]);
 
-  const errorMessage = failure ?? view.error?.message;
-  const hasAccount = view.id !== null;
-
   return (
     <main className="shell">
       <header>
-        <p className="eyebrow">Phase 2 · Browser Manager</p>
+        <p className="eyebrow">Phase 3 · Multi-account</p>
         <h1>{APP_NAME}</h1>
         <p className="subtitle">
           Local Windows connector. Unofficial and not affiliated with Telegram.
         </p>
       </header>
 
-      <section className="card" aria-labelledby="status-heading">
-        <h2 id="status-heading">{hasAccount ? view.label : "No account connected"}</h2>
+      {failure ? (
+        <p className="error" role="alert">
+          {failure}
+        </p>
+      ) : null}
 
-        <dl>
-          <div>
-            <dt>Connector</dt>
-            <dd>{info ? "Ready" : "Starting…"}</dd>
-          </div>
-          <div>
-            <dt>Account status</dt>
-            <dd>{STATUS_LABELS[view.status]}</dd>
-          </div>
-          <div>
-            <dt>Browser</dt>
-            <dd>{browserOpen(view) ? "Open" : "Closed"}</dd>
-          </div>
-          <div>
-            <dt>Login</dt>
-            <dd>{view.loginState ? LOGIN_LABELS[view.loginState] : "Not checked"}</dd>
-          </div>
-          {view.lastConnectedAt ? (
-            <div>
-              <dt>Last connected</dt>
-              <dd>{new Date(view.lastConnectedAt).toLocaleString()}</dd>
-            </div>
-          ) : null}
-        </dl>
-
-        {errorMessage ? (
-          <p className="error" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
-
-        {view.status === "waiting_for_login" || view.status === "authenticating" ? (
-          <p className="hint">
-            Scan the QR code in the Telegram window. If Telegram asks for a code or two-step
-            password, enter it there. The connector never sees or stores it.
-          </p>
-        ) : null}
-
-        <div className="actions">
-          {!hasAccount ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void run(() => window.api.startAccount())}
-            >
-              Add Account
-            </button>
-          ) : null}
-
-          {hasAccount && ["disconnected", "error"].includes(view.status) ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void run(() => window.api.startAccount())}
-            >
-              {view.status === "error" ? "Reconnect" : "Connect"}
-            </button>
-          ) : null}
-
-          {hasAccount && browserOpen(view) ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void run(() => window.api.openTelegram())}
-            >
-              Open Telegram
-            </button>
-          ) : null}
-
-          {hasAccount && (view.status === "connected" || browserOpen(view)) ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void run(() => window.api.stopAccount())}
-            >
-              Disconnect
-            </button>
-          ) : null}
-
-          {hasAccount ? (
-            <button type="button" className="danger" disabled={busy} onClick={removeAccount}>
-              Remove Account
-            </button>
-          ) : null}
+      <section className="card" aria-labelledby="accounts-heading">
+        <h2 id="accounts-heading">Accounts</h2>
+        <p className="hint">
+          Each account has its own isolated Chromium profile and session. Browsers start only when
+          you connect.
+        </p>
+        <div className="add-account">
+          <input
+            type="text"
+            aria-label="New account label"
+            placeholder="Account label (optional)"
+            value={newLabel}
+            disabled={creating}
+            onChange={(event) => setNewLabel(event.target.value)}
+          />
+          <button type="button" disabled={creating} onClick={() => void createAccount()}>
+            {creating ? "Adding…" : "Add Account"}
+          </button>
         </div>
+        {accounts.length === 0 ? <p className="hint">No accounts yet.</p> : null}
       </section>
+
+      {accounts.map((account) => {
+        const id = account.id;
+        if (!id) return null;
+        const busy = busyId === id;
+        return (
+          <section className="card" key={id} aria-labelledby={`account-${id}`}>
+            <div className="account-head">
+              <h2 id={`account-${id}`}>{account.label}</h2>
+              <button
+                type="button"
+                className="link-button"
+                disabled={busy}
+                onClick={() => void renameAccount(account)}
+              >
+                Rename
+              </button>
+            </div>
+
+            <dl>
+              <div>
+                <dt>Status</dt>
+                <dd>{STATUS_LABELS[account.status]}</dd>
+              </div>
+              <div>
+                <dt>Browser</dt>
+                <dd>{browserOpen(account) ? "Open" : "Closed"}</dd>
+              </div>
+              <div>
+                <dt>Login</dt>
+                <dd>{account.loginState ? LOGIN_LABELS[account.loginState] : "Not checked"}</dd>
+              </div>
+              {account.lastConnectedAt ? (
+                <div>
+                  <dt>Last connected</dt>
+                  <dd>{new Date(account.lastConnectedAt).toLocaleString()}</dd>
+                </div>
+              ) : null}
+            </dl>
+
+            {account.error ? (
+              <p className="error" role="alert">
+                {account.error.message}
+              </p>
+            ) : null}
+
+            {account.status === "waiting_for_login" || account.status === "authenticating" ? (
+              <p className="hint">
+                Scan the QR code in the Telegram window. If Telegram asks for a code or two-step
+                password, enter it there. The connector never sees or stores it.
+              </p>
+            ) : null}
+
+            <div className="actions">
+              {["disconnected", "error"].includes(account.status) ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runAccount(id, () => window.api.startAccount({ id }))}
+                >
+                  {account.status === "error" ? "Reconnect" : "Connect"}
+                </button>
+              ) : null}
+
+              {browserOpen(account) ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runAccount(id, () => window.api.openTelegram({ id }))}
+                >
+                  Open Telegram
+                </button>
+              ) : null}
+
+              {account.status === "connected" || browserOpen(account) ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void runAccount(id, () => window.api.stopAccount({ id }))}
+                >
+                  Disconnect
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                className="danger"
+                disabled={busy}
+                onClick={() => void removeAccount(account)}
+              >
+                Remove Account
+              </button>
+            </div>
+          </section>
+        );
+      })}
 
       <section className="card" aria-labelledby="proxy-heading">
         <h2 id="proxy-heading">Network / Proxy</h2>
         <p className="hint">
-          The connector uses only this proxy. There is no automatic fallback: if the proxy is down,
-          Telegram will not load and the settings stay selected.
+          The connector uses only this proxy for every account. There is no automatic fallback: if
+          the proxy is down, Telegram will not load and the settings stay selected.
         </p>
 
         <div className="proxy-form">
@@ -459,7 +559,7 @@ export function App() {
       <footer>
         {info ? `${info.appName} ${info.appVersion} · ${info.platform}` : null}
         <br />
-        Multi-account, Telegram tools, and MCP are not part of this phase.
+        Telegram operations and MCP are not part of this phase.
       </footer>
     </main>
   );

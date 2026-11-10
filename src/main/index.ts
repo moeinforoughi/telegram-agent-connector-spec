@@ -8,7 +8,7 @@ import { ProxySettingsStore } from "../core/network/proxy-settings";
 import { createPlaywrightProbe } from "../core/telegram/login-detector";
 import { APP_ID, APP_NAME } from "../shared/constants";
 import type { AppInfo } from "../shared/types";
-import { AccountController } from "./account-controller";
+import { AccountManager } from "./account-manager";
 import { registerIpcHandlers, sendAccountStatus } from "./ipc-router";
 import {
   buildDataPaths,
@@ -20,7 +20,7 @@ import { createElectronSecretCodec } from "./secure-storage";
 import { createMainWindow, loadRenderer } from "./window-manager";
 
 let mainWindow: BrowserWindow | undefined;
-let accountController: AccountController | undefined;
+let accountManager: AccountManager | undefined;
 let quitReady = false;
 
 app.setName(APP_NAME);
@@ -51,23 +51,20 @@ function getAppInfo(): AppInfo {
   };
 }
 
-function createServices(): { controller: AccountController; proxy: ProxySettingsStore } {
+function createServices(): { manager: AccountManager; proxy: ProxySettingsStore } {
   const userData = app.getPath("userData");
   const store = new AccountStore(
     path.join(userData, "config", "accounts.json"),
     path.join(userData, "profiles"),
   );
-  const browser = new BrowserManager({
-    launcher: createPlaywrightLauncher(),
-    onClosed: () => accountController?.handleBrowserClosed(),
-  });
   const proxy = new ProxySettingsStore(path.join(userData, "config", "proxy.json"), {
     secrets: createElectronSecretCodec(),
   });
 
-  const controller = new AccountController({
+  const manager = new AccountManager({
     store,
-    browser,
+    createBrowser: (onClosed) =>
+      new BrowserManager({ launcher: createPlaywrightLauncher(), onClosed }),
     getProxySettings: () => proxy.load(),
     createProbe: createPlaywrightProbe,
     onView: (view) => {
@@ -76,7 +73,7 @@ function createServices(): { controller: AccountController; proxy: ProxySettings
     log: (message) => console.error(`[account] ${message}`),
   });
 
-  return { controller, proxy };
+  return { manager, proxy };
 }
 
 process.on("uncaughtException", (error: unknown) => {
@@ -104,9 +101,9 @@ if (!hasSingleInstanceLock) {
   });
 
   app.on("before-quit", (event) => {
-    if (quitReady || !accountController?.running) return;
+    if (quitReady || !accountManager?.hasRunningBrowsers) return;
     event.preventDefault();
-    void accountController.stop().finally(() => {
+    void accountManager.shutdown().finally(() => {
       quitReady = true;
       app.quit();
     });
@@ -125,14 +122,16 @@ if (!hasSingleInstanceLock) {
       });
 
       const services = createServices();
-      accountController = services.controller;
+      accountManager = services.manager;
       registerIpcHandlers(mainWindow, {
         getAppInfo,
-        getAccount: () => services.controller.getView(),
-        startAccount: () => services.controller.start(),
-        stopAccount: () => services.controller.stop(),
-        openTelegram: () => services.controller.openTelegram(),
-        removeAccount: (request) => services.controller.remove(request.deleteProfile),
+        listAccounts: () => services.manager.list(),
+        createAccount: (request) => services.manager.create(request.label),
+        renameAccount: (request) => services.manager.rename(request.id, request.label),
+        startAccount: (request) => services.manager.start(request.id),
+        stopAccount: (request) => services.manager.stop(request.id),
+        openTelegram: (request) => services.manager.open(request.id),
+        removeAccount: (request) => services.manager.remove(request.id, request.deleteProfile),
         getProxySettings: () => services.proxy.getView(),
         saveProxySettings: (request) => services.proxy.save(request),
         testProxy: (request) => probeProxy(request),

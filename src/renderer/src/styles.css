@@ -176,6 +176,51 @@ button.danger {
   outline-offset: 1px;
 }
 
+.add-account {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.add-account input {
+  flex: 1 1 240px;
+  padding: 9px 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #0b1220;
+  color: #e2e8f0;
+  font: inherit;
+}
+
+.add-account input:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}
+
+.account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-head h2 {
+  margin: 0;
+}
+
+.link-button {
+  padding: 4px 8px;
+  border-color: transparent;
+  background: transparent;
+  color: #7dd3fc;
+  font-size: 13px;
+}
+
+.link-button:hover:not(:disabled) {
+  background: #1e293b;
+}
+
 footer {
   margin-top: 32px;
   color: #64748b;

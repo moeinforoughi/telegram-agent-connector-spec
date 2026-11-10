@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import type { Page } from "playwright";
 import type { AccountStore, StoredAccount } from "../core/account/account-store";
@@ -25,6 +24,8 @@ export type BrowserDriver = {
 export type AccountControllerDeps = {
   readonly store: AccountStore;
   readonly browser: BrowserDriver;
+  /** The fixed account this controller owns. */
+  readonly accountId: string;
   /** Manual proxy settings; this is the only proxy source for the browser. */
   readonly getProxySettings: () => Promise<ProxySettings>;
   readonly createProbe: (page: Page) => PageProbe;
@@ -34,17 +35,21 @@ export type AccountControllerDeps = {
   readonly log?: (message: string) => void;
 };
 
-const EMPTY_VIEW: AccountView = {
-  id: null,
-  label: "No account",
-  status: "disconnected",
-};
-
 const ACTIVE_STATUSES = ["waiting_for_login", "authenticating", "connected"] as const;
+
+function accountView(account: StoredAccount, status: AccountView["status"]): AccountView {
+  return {
+    id: account.id,
+    label: account.label,
+    status,
+    createdAt: account.createdAt,
+    ...(account.lastConnectedAt ? { lastConnectedAt: account.lastConnectedAt } : {}),
+  };
+}
 
 export class AccountController {
   private readonly deps: AccountControllerDeps;
-  private view: AccountView = EMPTY_VIEW;
+  private view: AccountView;
   private account: StoredAccount | undefined;
   private page: Page | undefined;
   private proxyKey: string | undefined;
@@ -54,10 +59,20 @@ export class AccountController {
 
   constructor(deps: AccountControllerDeps) {
     this.deps = deps;
+    this.account = deps.store.getById(deps.accountId);
+    this.view = this.account
+      ? accountView(this.account, "disconnected")
+      : { id: deps.accountId, label: "Account", status: "disconnected" };
   }
 
   getView(): AccountView {
     return { ...this.view };
+  }
+
+  /** Called by AccountManager after a rename. */
+  updateLabel(label: string): void {
+    if (this.account) this.account = { ...this.account, label };
+    this.setView({ ...this.view, label });
   }
 
   get running(): boolean {
@@ -100,20 +115,6 @@ export class AccountController {
     return this.getView();
   }
 
-  async remove(deleteProfile: boolean): Promise<AccountView> {
-    const account = this.deps.store.getFirst();
-    await this.stop();
-    if (!account) return this.getView();
-
-    this.deps.store.remove(account.id);
-    if (deleteProfile) {
-      fs.rmSync(path.dirname(account.profileDir), { recursive: true, force: true });
-    }
-    this.account = undefined;
-    this.setView(EMPTY_VIEW);
-    return this.getView();
-  }
-
   /** Called by the BrowserManager when the Chromium window closes. */
   handleBrowserClosed(): void {
     if (this.stopping) return;
@@ -133,20 +134,17 @@ export class AccountController {
       }
     }
 
+    const account = this.deps.store.getById(this.deps.accountId);
+    if (!account) {
+      this.fail(new AppError("ACCOUNT_NOT_FOUND", "Account was not found", { retryable: false }));
+      return this.getView();
+    }
+
     const generation = (this.generation += 1);
-    this.setView({ ...EMPTY_VIEW, status: "initializing" });
+    this.account = account;
+    this.setView(accountView(account, "initializing"));
 
     try {
-      const account = this.account ?? this.deps.store.getFirst() ?? this.deps.store.create();
-      this.account = account;
-      this.setView({
-        id: account.id,
-        label: account.label,
-        status: "initializing",
-        createdAt: account.createdAt,
-        ...(account.lastConnectedAt ? { lastConnectedAt: account.lastConnectedAt } : {}),
-      });
-
       const settings = await this.deps.getProxySettings();
       const proxyKey = proxyConfigurationKey(settings);
       const proxy = toPlaywrightProxyConfig(settings);

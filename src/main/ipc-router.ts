@@ -5,9 +5,12 @@ import {
   IPC_ALLOWLIST,
   IPC_CHANNELS,
   IPC_EVENTS,
+  type AccountIdRequest,
+  type CreateAccountRequest,
   type IpcChannel,
   type IpcResult,
   type RemoveAccountRequest,
+  type RenameAccountRequest,
 } from "../shared/ipc";
 import type {
   ProxyProtocol,
@@ -28,11 +31,13 @@ const PERMISSION_DENIED: SerializedError = {
 
 export type IpcHandlers = {
   readonly getAppInfo: () => AppInfo;
-  readonly getAccount: () => AccountView;
-  readonly startAccount: () => Promise<AccountView>;
-  readonly stopAccount: () => Promise<AccountView>;
-  readonly openTelegram: () => Promise<AccountView>;
-  readonly removeAccount: (request: RemoveAccountRequest) => Promise<AccountView>;
+  readonly listAccounts: () => AccountView[];
+  readonly createAccount: (request: CreateAccountRequest) => AccountView;
+  readonly renameAccount: (request: RenameAccountRequest) => AccountView;
+  readonly startAccount: (request: AccountIdRequest) => Promise<AccountView>;
+  readonly stopAccount: (request: AccountIdRequest) => Promise<AccountView>;
+  readonly openTelegram: (request: AccountIdRequest) => Promise<AccountView>;
+  readonly removeAccount: (request: RemoveAccountRequest) => Promise<{ readonly removed: true }>;
   readonly getProxySettings: () => Promise<ProxySettingsView>;
   readonly saveProxySettings: (request: SaveProxySettingsRequest) => Promise<ProxySettingsView>;
   readonly testProxy: (request: ProxyTestRequest) => Promise<ProxyTestResult>;
@@ -52,8 +57,8 @@ export function sendAccountStatus(window: BrowserWindow, view: AccountView): voi
   window.webContents.send(IPC_EVENTS.accountStatus, view);
 }
 
-function invalidArgument(): AppError {
-  return new AppError("INVALID_ARGUMENT", "Invalid request payload");
+function invalidArgument(message = "Invalid request payload"): AppError {
+  return new AppError("INVALID_ARGUMENT", message);
 }
 
 function asRecord(payload: unknown): Record<string, unknown> {
@@ -61,12 +66,32 @@ function asRecord(payload: unknown): Record<string, unknown> {
   return payload as Record<string, unknown>;
 }
 
+function parseAccountId(payload: unknown): AccountIdRequest {
+  const id = asRecord(payload).id;
+  if (typeof id !== "string" || id.trim() === "") throw invalidArgument("Invalid account id");
+  return { id };
+}
+
+function parseCreateAccountRequest(payload: unknown): CreateAccountRequest {
+  const label = asRecord(payload).label;
+  if (label !== undefined && typeof label !== "string") {
+    throw invalidArgument("Invalid account label");
+  }
+  return label === undefined ? {} : { label };
+}
+
+function parseRenameAccountRequest(payload: unknown): RenameAccountRequest {
+  const record = asRecord(payload);
+  if (typeof record.label !== "string") throw invalidArgument("Invalid account label");
+  return { id: parseAccountId(payload).id, label: record.label };
+}
+
 function parseRemoveAccountRequest(payload: unknown): RemoveAccountRequest {
   const deleteProfile = asRecord(payload).deleteProfile;
   if (typeof deleteProfile !== "boolean") {
     throw new AppError("INVALID_ARGUMENT", "Invalid account removal request");
   }
-  return { deleteProfile };
+  return { id: parseAccountId(payload).id, deleteProfile };
 }
 
 function parseProxyProtocol(value: unknown): ProxyProtocol {
@@ -98,14 +123,18 @@ function runHandler(handlers: IpcHandlers, channel: IpcChannel, payload: unknown
   switch (channel) {
     case IPC_CHANNELS.getAppInfo:
       return handlers.getAppInfo();
-    case IPC_CHANNELS.getAccount:
-      return handlers.getAccount();
+    case IPC_CHANNELS.listAccounts:
+      return handlers.listAccounts();
+    case IPC_CHANNELS.createAccount:
+      return handlers.createAccount(parseCreateAccountRequest(payload));
+    case IPC_CHANNELS.renameAccount:
+      return handlers.renameAccount(parseRenameAccountRequest(payload));
     case IPC_CHANNELS.startAccount:
-      return handlers.startAccount();
+      return handlers.startAccount(parseAccountId(payload));
     case IPC_CHANNELS.stopAccount:
-      return handlers.stopAccount();
+      return handlers.stopAccount(parseAccountId(payload));
     case IPC_CHANNELS.openTelegram:
-      return handlers.openTelegram();
+      return handlers.openTelegram(parseAccountId(payload));
     case IPC_CHANNELS.removeAccount:
       return handlers.removeAccount(parseRemoveAccountRequest(payload));
     case IPC_CHANNELS.getProxySettings:

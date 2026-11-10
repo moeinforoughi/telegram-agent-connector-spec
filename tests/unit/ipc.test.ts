@@ -6,7 +6,9 @@ describe("IPC allowlist", () => {
   it("contains exactly the intended channels", () => {
     expect(IPC_ALLOWLIST).toEqual([
       IPC_CHANNELS.getAppInfo,
-      IPC_CHANNELS.getAccount,
+      IPC_CHANNELS.listAccounts,
+      IPC_CHANNELS.createAccount,
+      IPC_CHANNELS.renameAccount,
       IPC_CHANNELS.startAccount,
       IPC_CHANNELS.stopAccount,
       IPC_CHANNELS.openTelegram,

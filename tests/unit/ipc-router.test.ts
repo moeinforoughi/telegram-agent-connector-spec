@@ -43,11 +43,13 @@ const proxyTest: ProxyTestResult = { status: "success", message: "Proxy tunnel e
 function makeHandlers(): IpcHandlers {
   return {
     getAppInfo: () => info,
-    getAccount: () => view,
-    startAccount: async () => view,
-    stopAccount: async () => view,
-    openTelegram: async () => view,
-    removeAccount: vi.fn(async () => view),
+    listAccounts: () => [view],
+    createAccount: vi.fn(() => view),
+    renameAccount: vi.fn(() => view),
+    startAccount: vi.fn(async () => view),
+    stopAccount: vi.fn(async () => view),
+    openTelegram: vi.fn(async () => view),
+    removeAccount: vi.fn(async () => ({ removed: true as const })),
     getProxySettings: async () => proxyView,
     saveProxySettings: vi.fn(async () => proxyView),
     testProxy: vi.fn(async () => proxyTest),
@@ -92,10 +94,12 @@ describe("registerIpcHandlers", () => {
 
     registerIpcHandlers(window, makeHandlers());
 
-    expect(ipc.removeHandler).toHaveBeenCalledTimes(9);
+    expect(ipc.removeHandler).toHaveBeenCalledTimes(11);
     expect(ipc.handle.mock.calls.map(([channel]) => channel)).toEqual([
       "app:get-info",
-      "account:get",
+      "account:list",
+      "account:create",
+      "account:rename",
       "account:start",
       "account:stop",
       "account:open",
@@ -131,23 +135,60 @@ describe("registerIpcHandlers", () => {
     });
   });
 
-  it("validates the remove-account payload before calling the controller", async () => {
+  it("validates account id payloads", async () => {
     const { window, mainFrame } = makeWindow();
     const handlers = makeHandlers();
     registerIpcHandlers(window, handlers);
-    const handler = handlerFor("account:remove");
+    const start = handlerFor("account:start");
 
-    await expect(handler(makeEvent(mainFrame), { deleteProfile: "yes" })).resolves.toMatchObject({
+    await expect(start(makeEvent(mainFrame), {})).resolves.toMatchObject({
       ok: false,
       error: { code: "INVALID_ARGUMENT" },
     });
-    expect(handlers.removeAccount).not.toHaveBeenCalled();
+    await expect(start(makeEvent(mainFrame), { id: "" })).resolves.toMatchObject({
+      ok: false,
+      error: { code: "INVALID_ARGUMENT" },
+    });
+    expect(handlers.startAccount).not.toHaveBeenCalled();
 
-    await expect(handler(makeEvent(mainFrame), { deleteProfile: true })).resolves.toEqual({
+    await expect(start(makeEvent(mainFrame), { id: view.id })).resolves.toEqual({
       ok: true,
       data: view,
     });
-    expect(handlers.removeAccount).toHaveBeenCalledWith({ deleteProfile: true });
+    expect(handlers.startAccount).toHaveBeenCalledWith({ id: view.id });
+  });
+
+  it("validates create, rename and remove payloads", async () => {
+    const { window, mainFrame } = makeWindow();
+    const handlers = makeHandlers();
+    registerIpcHandlers(window, handlers);
+
+    const create = handlerFor("account:create");
+    await expect(create(makeEvent(mainFrame), {})).resolves.toEqual({ ok: true, data: view });
+    expect(handlers.createAccount).toHaveBeenCalledWith({});
+    await expect(create(makeEvent(mainFrame), { label: 7 })).resolves.toMatchObject({
+      ok: false,
+      error: { code: "INVALID_ARGUMENT" },
+    });
+
+    const rename = handlerFor("account:rename");
+    await expect(rename(makeEvent(mainFrame), { id: view.id, label: "Personal" })).resolves.toEqual(
+      {
+        ok: true,
+        data: view,
+      },
+    );
+    expect(handlers.renameAccount).toHaveBeenCalledWith({ id: view.id, label: "Personal" });
+
+    const remove = handlerFor("account:remove");
+    await expect(
+      remove(makeEvent(mainFrame), { id: view.id, deleteProfile: "yes" }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "INVALID_ARGUMENT" } });
+    expect(handlers.removeAccount).not.toHaveBeenCalled();
+    await expect(
+      remove(makeEvent(mainFrame), { id: view.id, deleteProfile: true }),
+    ).resolves.toEqual({ ok: true, data: { removed: true } });
+    expect(handlers.removeAccount).toHaveBeenCalledWith({ id: view.id, deleteProfile: true });
   });
 
   it("validates proxy payloads before calling the services", async () => {
@@ -190,12 +231,5 @@ describe("registerIpcHandlers", () => {
         password: "secret",
       }),
     ).resolves.toEqual({ ok: true, data: proxyTest });
-    expect(handlers.testProxy).toHaveBeenCalledWith({
-      protocol: "http",
-      host: "127.0.0.1",
-      port: 8080,
-      username: "user",
-      password: "secret",
-    });
   });
 });

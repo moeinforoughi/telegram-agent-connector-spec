@@ -93,7 +93,9 @@ describe("Electron shell", () => {
     expect(renderer.module).toBe("undefined");
     expect(renderer.apiKeys).toEqual([
       "getAppInfo",
-      "getAccount",
+      "listAccounts",
+      "createAccount",
+      "renameAccount",
       "startAccount",
       "stopAccount",
       "openTelegram",
@@ -135,22 +137,69 @@ describe("Electron shell", () => {
     }
   });
 
-  it("shows the single-account dashboard without exposing local paths", async () => {
+  it("shows the multi-account dashboard without exposing local paths", async () => {
     const launched = await launchApp();
 
-    const account = await launched.page.evaluate(() =>
-      (globalThis as unknown as { api: { getAccount(): Promise<unknown> } }).api.getAccount(),
+    const accounts = await launched.page.evaluate(() =>
+      (globalThis as unknown as { api: { listAccounts(): Promise<unknown> } }).api.listAccounts(),
     );
 
-    expect(account).toEqual({
-      ok: true,
-      data: { id: null, label: "No account", status: "disconnected" },
-    });
-    expect(JSON.stringify(account)).not.toContain(userDataDir);
-    expect(await launched.page.locator("#status-heading").textContent()).toBe(
-      "No account connected",
-    );
+    expect(accounts).toEqual({ ok: true, data: [] });
+    expect(JSON.stringify(accounts)).not.toContain(userDataDir);
+    expect(await launched.page.locator("#accounts-heading").textContent()).toBe("Accounts");
+    expect(await launched.page.getByText("No accounts yet.").count()).toBe(1);
     expect(await launched.page.getByRole("button", { name: "Add Account" }).count()).toBe(1);
+  });
+
+  it("creates an account from the dashboard without launching a browser", async () => {
+    const launched = await launchApp();
+
+    await launched.page.getByLabel("New account label").fill("Personal");
+    await launched.page.getByRole("button", { name: "Add Account" }).click();
+
+    await expect
+      .poll(() => launched.page.getByRole("heading", { name: "Personal" }).count(), {
+        timeout: 5_000,
+      })
+      .toBe(1);
+
+    const dataRoot = userDataDir;
+    if (!dataRoot) throw new Error("Missing test data directory");
+    const raw = JSON.parse(
+      fs.readFileSync(path.join(dataRoot, "config", "accounts.json"), "utf8"),
+    ) as Array<{
+      label: string;
+      profileDir: string;
+    }>;
+    expect(raw).toHaveLength(1);
+    expect(raw[0]?.label).toBe("Personal");
+    expect(raw[0]?.profileDir).toContain("profiles");
+    expect(fs.existsSync(path.join(dataRoot, "profiles"))).toBe(true);
+  });
+
+  it("creates three isolated account entries from the dashboard", async () => {
+    const launched = await launchApp();
+
+    for (const label of ["Personal", "Work", "Test"]) {
+      await launched.page.getByLabel("New account label").fill(label);
+      await launched.page.getByRole("button", { name: "Add Account" }).click();
+      await expect
+        .poll(() => launched.page.getByRole("heading", { name: label }).count(), {
+          timeout: 5_000,
+        })
+        .toBe(1);
+    }
+
+    const dataRoot = userDataDir;
+    if (!dataRoot) throw new Error("Missing test data directory");
+    const raw = JSON.parse(
+      fs.readFileSync(path.join(dataRoot, "config", "accounts.json"), "utf8"),
+    ) as Array<{
+      label: string;
+      profileDir: string;
+    }>;
+    expect(raw.map((account) => account.label)).toEqual(["Personal", "Work", "Test"]);
+    expect(new Set(raw.map((account) => account.profileDir)).size).toBe(3);
   });
 
   it("shows editable manual proxy settings", async () => {

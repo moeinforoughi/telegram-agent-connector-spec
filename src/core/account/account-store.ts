@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AppError } from "../../shared/errors";
-import { ensureAccountProfileDir } from "../browser/profile-paths";
+import { accountProfileDir, ensureAccountProfileDir } from "../browser/profile-paths";
 
 export type StoredAccount = {
   readonly id: string;
@@ -16,6 +16,8 @@ export type AccountStoreDeps = {
   readonly id?: () => string;
 };
 
+const MAX_LABEL_LENGTH = 80;
+
 function isStoredAccount(value: unknown): value is StoredAccount {
   if (typeof value !== "object" || value === null) return false;
   const entry = value as Partial<StoredAccount>;
@@ -28,9 +30,26 @@ function isStoredAccount(value: unknown): value is StoredAccount {
   );
 }
 
+function normalizeLabel(raw: string): string {
+  const label = raw.trim();
+  if (!label) throw new AppError("INVALID_ARGUMENT", "Account label is required");
+  if (label.length > MAX_LABEL_LENGTH) {
+    throw new AppError("INVALID_ARGUMENT", "Account label is too long");
+  }
+  const hasControlCharacter = [...label].some((character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return code < 0x20 || code === 0x7f;
+  });
+  if (hasControlCharacter) throw new AppError("INVALID_ARGUMENT", "Invalid account label");
+  return label;
+}
+
 /**
- * Non-secret account metadata in a local JSON file. Session data stays in the
- * Chromium profile; cookies and tokens are never copied here.
+ * Non-secret account metadata in a local JSON file. Session data stays in each
+ * account's Chromium profile; cookies and tokens are never copied here.
+ *
+ * A corrupt registry is renamed to a backup and treated as empty. The original
+ * bytes are never deleted, so recovery does not destroy user data.
  */
 export class AccountStore {
   private readonly filePath: string;
@@ -43,6 +62,10 @@ export class AccountStore {
     this.profilesRoot = profilesRoot;
     this.now = deps.now ?? (() => new Date());
     this.nextId = deps.id ?? (() => crypto.randomUUID());
+  }
+
+  list(): StoredAccount[] {
+    return this.load();
   }
 
   load(): StoredAccount[] {
@@ -58,11 +81,22 @@ export class AccountStore {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      throw new AppError("INTERNAL_ERROR", "Account store is corrupted");
+      return this.recoverCorrupt(raw);
     }
     if (!Array.isArray(parsed) || !parsed.every(isStoredAccount)) {
-      throw new AppError("INTERNAL_ERROR", "Account store is corrupted");
+      return this.recoverCorrupt(raw);
     }
+
+    // The registry may not inject a profile path outside the managed root.
+    const validPaths = parsed.every((account) => {
+      try {
+        return account.profileDir === accountProfileDir(this.profilesRoot, account.id);
+      } catch {
+        return false;
+      }
+    });
+    if (!validPaths) return this.recoverCorrupt(raw);
+
     return parsed;
   }
 
@@ -70,17 +104,34 @@ export class AccountStore {
     return this.load()[0];
   }
 
+  getById(id: string): StoredAccount | undefined {
+    return this.load().find((account) => account.id === id);
+  }
+
   create(label?: string): StoredAccount {
     const accounts = this.load();
     const id = this.nextId();
     const account: StoredAccount = {
       id,
-      label: label?.trim() || `Account ${accounts.length + 1}`,
+      label: label === undefined ? `Account ${accounts.length + 1}` : normalizeLabel(label),
       profileDir: ensureAccountProfileDir(this.profilesRoot, id),
       createdAt: this.now().toISOString(),
     };
     this.save([...accounts, account]);
     return account;
+  }
+
+  rename(id: string, label: string): StoredAccount | undefined {
+    const accounts = this.load();
+    const index = accounts.findIndex((account) => account.id === id);
+    if (index < 0) return undefined;
+    const current = accounts[index];
+    if (!current) return undefined;
+
+    const renamed: StoredAccount = { ...current, label: normalizeLabel(label) };
+    accounts[index] = renamed;
+    this.save(accounts);
+    return renamed;
   }
 
   updateLastConnected(id: string, isoTime: string): void {
@@ -99,6 +150,32 @@ export class AccountStore {
     if (!removed) return undefined;
     this.save(accounts.filter((account) => account.id !== id));
     return removed;
+  }
+
+  private recoverCorrupt(raw: string): StoredAccount[] {
+    const stamp = this.now().toISOString().replace(/[:.]/g, "-");
+    let backup = `${this.filePath}.corrupt-${stamp}`;
+    let counter = 1;
+    while (fs.existsSync(backup)) {
+      backup = `${this.filePath}.corrupt-${stamp}-${counter}`;
+      counter += 1;
+    }
+    try {
+      fs.renameSync(this.filePath, backup);
+    } catch {
+      // If rename is not possible, copy the bytes and only then remove the
+      // registry; never lose the corrupt content.
+      try {
+        fs.writeFileSync(backup, raw);
+        fs.rmSync(this.filePath, { force: true });
+      } catch {
+        throw new AppError(
+          "INTERNAL_ERROR",
+          "Account store is corrupted and could not be backed up",
+        );
+      }
+    }
+    return [];
   }
 
   private save(accounts: readonly StoredAccount[]): void {
