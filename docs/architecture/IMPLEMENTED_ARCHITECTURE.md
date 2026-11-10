@@ -1,10 +1,10 @@
-# Implemented Architecture — Phase 0 to Phase 2 Task 7
+# Implemented Architecture — Phase 0 to Phase 2 Task 8
 
 Status: current implementation, reconciled against the code and tests in the
 repository. Phase 2 live verification is still pending; see
 `docs/phase2/PHASE2_REPORT.md`.
 
-Scope: Phase 0 feasibility spike, Phase 1 Electron foundation, Phase 2 Tasks 1–7.
+Scope: Phase 0 feasibility spike, Phase 1 Electron foundation, Phase 2 Tasks 1–8.
 This document records what is **actually implemented**, not only the target
 design in `ARCHITECTURE.md`. Where the implementation differs, the difference is
 listed in §9 with its reason and limits.
@@ -333,7 +333,7 @@ layer, outside this resolver. A VPN that configures WinINET appears as source
 
 ## 8. Testing architecture
 
-| Layer | Location | Count at Task 7 | What it proves |
+| Layer | Location | Count at Task 8 | What it proves |
 |---|---|---|---|
 | Unit | `tests/unit/` | 17 files / 103 tests | Pure logic: proxy resolution, registry parsing, lock, detector, monitor, store, controller, IPC, paths, windows, errors |
 | Integration | `tests/integration/` | 2 files / 11 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, bypass, proxy loss/recovery, Telegram HTML fixtures |
