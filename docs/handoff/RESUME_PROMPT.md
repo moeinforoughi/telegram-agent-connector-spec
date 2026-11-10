@@ -31,14 +31,18 @@ Before changing anything:
 
 ## Current state (2026-11-10)
 
-Phase 2 is **Partially Verified**: real Telegram login and browser-restart
-session persistence PASS (successful proxy: SOCKS5 `127.0.0.1:12334`). Electron
-full restart, Windows restart, proxy loss/recovery, and session revoke detection
-are still Pending; QR-vs-phone and 2FA were not recorded. Tasks 1–8 and both
-proxy fixes (`67cb669`, `51714cf`) are committed. Phase 3 is not authorized.
+**Phase 2 is COMPLETE FOR MVP — ACCEPTED DEFERRED VERIFICATIONS.** Real Telegram
+login, Connected status, browser close/reopen, and session persistence across
+browser restart PASS (successful proxy: SOCKS5 `127.0.0.1:12334`). Deferred and
+recorded as NOT TESTED: Electron full restart (user cleared the session first),
+Windows full restart, proxy loss/recovery, session revoke, and 10808
+troubleshooting. QR-vs-phone and 2FA were not recorded.
 
-Do not ask the user to repeat real login or browser close/reopen; those are
-already PASS. See `docs/phase2/PHASE2_REPORT.md` §3.1 and §8.
+**Phase 3 — Multi-account Management is active.** Start from
+`TASKS/04_MULTI_ACCOUNT.md`. Preserve the current BrowserManager and manual proxy
+architecture; one profile per account; independent sessions; no shared
+cookies/storage. MCP and Telegram operations are out of scope. Do not re-run
+Phase 2 deferred tests unless the user asks. Phase 4+ is not authorized.
 
 Proxy rules (permanent): the connector uses only the user's saved manual proxy
 (SOCKS5/HTTP, host, port, optional credentials). There is no system-proxy

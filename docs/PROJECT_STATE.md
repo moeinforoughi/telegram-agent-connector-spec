@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (saved-proxy application fixed; live QR pending)
+Last updated: 2026-11-10 (Phase 2 complete for MVP; Phase 3 starting)
 
 ## Project Goal
 
@@ -46,17 +46,17 @@ implied affiliation.
 |---|---|---|
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
-| 2 — Browser Manager, proxy, single account login | **Partially Verified** — real login + browser-restart session PASS; Electron/Windows restart, proxy loss, revoke pending | `docs/phase2/PHASE2_PLAN.md`, `docs/phase2/PHASE2_REPORT.md`; Tasks 1–8 and proxy fixes committed |
-| 3+ | Not started; no approval | Roadmap docs |
+| 2 — Browser Manager, proxy, single account login | **COMPLETE FOR MVP** — deferred verifications accepted | `docs/phase2/PHASE2_REPORT.md` (§9.1); Tasks 1–8 and proxy fixes committed |
+| 3 — Multi-account management | In progress | `TASKS/04_MULTI_ACCOUNT.md` |
+| 4+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 2 remaining live verification. **PASS:** real Telegram login (Connected)
-and browser close/reopen session persistence; the successful proxy was SOCKS5
-`127.0.0.1:12334`. **Pending:** Electron full restart, Windows full restart,
-proxy loss/recovery, session revoke detection, and explicit confirmation of QR
-vs phone login and 2FA. Phase 2 stays "Partially Verified" until these are
-recorded. Do not start Phase 3.
+Phase 3 — Multi-account Management. Phase 2 is closed for MVP with accepted
+deferred verifications. Start by reading `TASKS/04_MULTI_ACCOUNT.md`; the goal is
+at least three isolated account profiles with independent sessions, lazy browser
+launch, and no shared cookies/storage. Do not start Phase 4 (Telegram
+operations/MCP) or Phase 5.
 
 ## Session-Independent Development
 
@@ -149,9 +149,15 @@ code, and test evidence win.
   `bad option: --remote-debugging-port=0`. The E2E launcher now strips it from
   the child environment, so `npm run check` works regardless; `npm run dev` in
   that shell still needs it unset. No Windows environment change is made.
-- Live QR/2FA confirmation, Electron/Windows restart, proxy loss/recovery, and
-  revoke detection are **Pending**; see `docs/phase2/PHASE2_REPORT.md` §8.
-  Phase 2 is therefore Partially Verified, not complete.
+- Phase 2 closure (2026-11-10): **COMPLETE FOR MVP — ACCEPTED DEFERRED
+  VERIFICATIONS**. Real Telegram login, Connected status, browser close/reopen,
+  and session persistence across browser restart PASS. Successful proxy:
+  SOCKS5 `127.0.0.1:12334` (user setting; no vendor dependency).
+  Electron full restart is **NOT TESTED** because the user cleared the session
+  before closing; missing profile/account metadata is expected, not a bug.
+  Windows restart, proxy loss/recovery, session revoke, and 10808
+  troubleshooting are **NOT TESTED** by user decision. QR-vs-phone and 2FA were
+  not recorded. See `docs/phase2/PHASE2_REPORT.md` §9.1.
 - Known architecture gap: the browser close reason is not modelled. An
   intentional user close currently becomes a `BROWSER_CLOSED` error; a crash is
   only logged. Browser runtime state and stored session state are not yet

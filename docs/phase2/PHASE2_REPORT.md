@@ -1,9 +1,9 @@
 # Phase 2 — Final Verification Report
 
-Status: **Partially Verified — automated verification passed; real Telegram
-login and browser-restart session PASS. Electron/Windows restart, proxy
-loss/recovery, session revoke, and QR/2FA confirmation are still pending.**
-Phase 2 is **not** declared complete.
+Status: **COMPLETE FOR MVP — ACCEPTED DEFERRED VERIFICATIONS**.
+The MVP scope (real Telegram login through a user-configured proxy + session
+persistence across browser restart) is verified. The remaining checks are
+accepted as deferred and are not treated as failures. Phase 3 may start.
 
 Date: 2026-11-10
 Branch: `main`
@@ -349,13 +349,44 @@ Notes:
 | Real login | **PASS** (user-confirmed) |
 | Real QR login | Login PASS; QR method not recorded |
 | Real 2FA | Not confirmed |
-| Session persistence with a real account | Browser restart **PASS**; Electron/Windows restart pending |
+| Session persistence with a real account | Browser restart **PASS**; Electron/Windows restart accepted as deferred |
 | Automated tests pass | Yes (`51714cf`) |
 | Runtime limits documented | Yes |
 | Architecture docs updated | Yes |
 | Handoff complete | Yes |
 
-**Conclusion: Phase 2 is Partially Verified. Do not start Phase 3.**
+**Conclusion: Phase 2 is COMPLETE FOR MVP with accepted deferred verifications.
+Phase 3 may start.**
+
+## 9.1 MVP closure decision (2026-11-10)
+
+User-accepted Phase 2 scope:
+
+| Item | Result |
+|---|---|
+| Telegram Web through proxy | **PASS** |
+| Real Telegram login | **PASS** |
+| Account/Login status Connected | **PASS** |
+| User closes browser window | Done |
+| Reopen browser | **PASS** |
+| Session persistence across browser restart | **PASS** |
+| Successful proxy | SOCKS5 `127.0.0.1:12334` |
+
+Accepted deferred checks — recorded as **NOT TESTED**, not failures:
+
+| Item | Status | Note |
+|---|---|---|
+| Electron full restart persistence | **NOT TESTED** | The user cleared the session before closing Electron; missing profile/account metadata afterwards is expected, not a data-directory bug |
+| Windows full restart | **NOT TESTED** | Out of MVP test scope |
+| Proxy loss / recovery in the app | **NOT TESTED** | Out of MVP test scope |
+| Session revoke detection | **NOT TESTED** | Out of MVP test scope |
+| V2RayN port 10808 troubleshooting | **NOT TESTED** | 10808 route was not selected for the final connection |
+| QR vs phone login confirmation | Not recorded | Login itself PASS; method not stated |
+| 2FA | Not confirmed | Only mark PASS if actually performed |
+
+The manual proxy architecture remains in place. The current 12334 values are the
+user's chosen settings, not a vendor integration; no V2RayN/Hiddify code exists
+and any SOCKS5/HTTP proxy can be entered.
 
 ## 10. Known limitations carried forward
 

@@ -231,3 +231,20 @@
   user-confirmed.
 - No code changed in this step; documentation commit follows. Phase 2 remains
   Partially Verified; no Phase 3 work started.
+
+## 2026-11-10 — Phase 2 closure and Phase 3 start
+
+- User accepted the Phase 2 MVP scope: real Telegram login, Connected status,
+  browser close/reopen, and session persistence across browser restart all PASS;
+  successful proxy SOCKS5 `127.0.0.1:12334`.
+- Deferred and recorded as **NOT TESTED** (not failures): Electron full restart
+  (user cleared the session first, so missing profile/metadata is expected),
+  Windows full restart, proxy loss/recovery, session revoke, and V2RayN 10808
+  troubleshooting. QR-vs-phone and 2FA remain unrecorded/unconfirmed.
+- Phase 2 marked **COMPLETE FOR MVP — ACCEPTED DEFERRED VERIFICATIONS** in
+  `PHASE2_REPORT.md` §9.1. No test was marked PASS without real evidence.
+- Manual Proxy Configuration remains the architecture; the 12334 values are user
+  settings, not a vendor integration.
+- Phase 3 (Multi-account Management) started from `TASKS/04_MULTI_ACCOUNT.md`.
+- No product code changed in this step; documentation commit follows. Check
+  `git log -1`.
