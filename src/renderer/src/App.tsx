@@ -14,6 +14,7 @@ import type { AppInfo } from "../../shared/types";
 
 const STATUS_LABELS: Record<AccountStatus, string> = {
   disconnected: "Disconnected",
+  ready: "Ready",
   initializing: "Starting browser",
   waiting_for_login: "Waiting for login",
   authenticating: "Completing sign-in",
@@ -387,7 +388,13 @@ export function App() {
               </div>
               <div>
                 <dt>Login</dt>
-                <dd>{account.loginState ? LOGIN_LABELS[account.loginState] : "Not checked"}</dd>
+                <dd>
+                  {account.loginState
+                    ? browserOpen(account)
+                      ? LOGIN_LABELS[account.loginState]
+                      : `Last known: ${LOGIN_LABELS[account.loginState]}`
+                    : "Not checked"}
+                </dd>
               </div>
               {account.lastConnectedAt ? (
                 <div>
@@ -403,6 +410,12 @@ export function App() {
               </p>
             ) : null}
 
+            {account.status === "ready" ? (
+              <p className="hint">
+                Browser closed. The profile and session are preserved; use Reconnect to continue.
+              </p>
+            ) : null}
+
             {account.status === "waiting_for_login" || account.status === "authenticating" ? (
               <p className="hint">
                 Scan the QR code in the Telegram window. If Telegram asks for a code or two-step
@@ -411,13 +424,15 @@ export function App() {
             ) : null}
 
             <div className="actions">
-              {["disconnected", "error"].includes(account.status) ? (
+              {["disconnected", "error", "ready"].includes(account.status) ? (
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => void runAccount(id, () => window.api.startAccount({ id }))}
                 >
-                  {account.status === "error" ? "Reconnect" : "Connect"}
+                  {account.status === "error" || account.status === "ready"
+                    ? "Reconnect"
+                    : "Connect"}
                 </button>
               ) : null}
 

@@ -284,14 +284,26 @@ describe("AccountController", () => {
     expect(subject.getView().error).toBeUndefined();
   });
 
-  it("reports a browser closed by the user as an error", async () => {
+  it("marks a user-closed browser as ready and keeps the last known session", async () => {
     const driver = browser();
     const subject = controller(driver);
     await subject.start();
+    await vi.waitFor(() => expect(subject.getView().status).toBe("connected"));
+    const profileDir = store.getFirst()?.profileDir;
 
+    await driver.close();
     subject.handleBrowserClosed();
 
-    expect(subject.getView().status).toBe("error");
-    expect(subject.getView().error?.code).toBe("BROWSER_CLOSED");
+    expect(subject.getView().status).toBe("ready");
+    expect(subject.getView().loginState).toBe("CONNECTED");
+    expect(subject.getView().error).toBeUndefined();
+    expect(profileDir && fs.existsSync(profileDir)).toBe(true);
+
+    await subject.start();
+    await vi.waitFor(() => expect(subject.getView().status).toBe("connected"));
+
+    expect(driver.launch).toHaveBeenCalledTimes(2);
+    expect(driver.launch).toHaveBeenLastCalledWith(expect.objectContaining({ profileDir }));
+    expect(profileDir && fs.existsSync(profileDir)).toBe(true);
   });
 });

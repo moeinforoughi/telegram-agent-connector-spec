@@ -2,6 +2,7 @@ import type { SerializedError } from "./errors";
 
 export const ACCOUNT_STATUSES = [
   "disconnected",
+  "ready",
   "initializing",
   "waiting_for_login",
   "authenticating",

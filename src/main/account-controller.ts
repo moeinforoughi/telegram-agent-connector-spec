@@ -121,7 +121,17 @@ export class AccountController {
     this.generation += 1;
     this.page = undefined;
     this.proxyKey = undefined;
-    this.fail(new AppError("BROWSER_CLOSED", "The browser window was closed", { retryable: true }));
+    this.log("browser closed; account ready");
+    // A normal user close is not an account error. The session lives in the
+    // profile and stays usable; keep the last known login state for the UI.
+    this.setView({
+      id: this.view.id,
+      label: this.view.label,
+      status: "ready",
+      ...(this.view.loginState ? { loginState: this.view.loginState } : {}),
+      ...(this.view.createdAt ? { createdAt: this.view.createdAt } : {}),
+      ...(this.view.lastConnectedAt ? { lastConnectedAt: this.view.lastConnectedAt } : {}),
+    });
   }
 
   private async doStart(): Promise<AccountView> {
@@ -187,6 +197,10 @@ export class AccountController {
 
       return await this.connect(generation, settings.enabled);
     } catch (error) {
+      if (isAppError(error) && error.code === "BROWSER_CLOSED") {
+        this.handleBrowserClosed();
+        return this.getView();
+      }
       // A successfully launched browser is never closed because of a network or
       // navigation error: the profile and session stay intact for Retry.
       if (!this.deps.browser.running) {
@@ -264,6 +278,10 @@ export class AccountController {
       });
     } catch (error) {
       if (generation !== this.generation) return;
+      if (isAppError(error) && error.code === "BROWSER_CLOSED") {
+        this.handleBrowserClosed();
+        return;
+      }
       this.fail(error);
     }
   }

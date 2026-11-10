@@ -151,6 +151,35 @@ describe("AccountManager", () => {
     });
   });
 
+  it("keeps other accounts unaffected when one browser is closed", async () => {
+    const { subject, browsers } = manager();
+    const first = subject.create("One");
+    const second = subject.create("Two");
+    if (!first.id || !second.id) throw new Error("Missing ids");
+
+    await subject.start(first.id);
+    await subject.start(second.id);
+    await vi.waitFor(() => {
+      expect(subject.list().find((account) => account.id === first.id)?.status).toBe("connected");
+      expect(subject.list().find((account) => account.id === second.id)?.status).toBe("connected");
+    });
+
+    const firstBrowser = browsers[0];
+    if (!firstBrowser) throw new Error("Missing first browser");
+    await firstBrowser.close();
+    firstBrowser.triggerClosed();
+
+    expect(subject.list().find((account) => account.id === first.id)?.status).toBe("ready");
+    expect(subject.list().find((account) => account.id === second.id)?.status).toBe("connected");
+
+    const firstProfile = store.getById(first.id)?.profileDir;
+    const secondProfile = store.getById(second.id)?.profileDir;
+    expect(firstProfile).not.toBe(secondProfile);
+    expect(firstProfile && fs.existsSync(firstProfile)).toBe(true);
+    expect(secondProfile && fs.existsSync(secondProfile)).toBe(true);
+    expect(browsers).toHaveLength(2);
+  });
+
   it("removes one account without touching the others", async () => {
     const { subject } = manager();
     const first = subject.create("One");
