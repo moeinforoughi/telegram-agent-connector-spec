@@ -2,7 +2,7 @@
 
 Date: 2026-11-10  
 Task: `TASKS/00_DISCOVERY_AND_SPIKE.md`  
-Status: **Complete — conditional GO**  
+Status: **Complete — GO approved (2026-11-10)**  
 Evidence: `spike/logs/spike-state.jsonl`
 
 ## 1. Objective
@@ -52,7 +52,7 @@ Playwright and Electron ship different Chromium versions. This is expected and a
 |---|---|---|---|
 | 1 | Browser launch | **PASS** | Headed Chrome for Testing launched with a dedicated persistent profile. |
 | 2 | Telegram Web load | **PASS** | `https://web.telegram.org/` redirected to `https://web.telegram.org/k/`; title contains "Telegram". |
-| 3 | Manual QR login | **PASS** | Login page showed `#auth-pages` + QR canvas; user completed login in the visible window. State changed to `CONNECTED` at 08:43:14 UTC. |
+| 3 | Manual QR login + 2FA | **PASS** | Login page showed `#auth-pages` + QR canvas; the user completed QR login and the two-step verification prompt inside the visible window. The spike read/stored no QR payload, code or password. State changed to `CONNECTED` at 08:43:14 UTC. |
 | 4 | Login state detection | **PASS** | Visible-locator detector logged `LOGIN_REQUIRED` before login and `CONNECTED` after. |
 | 5 | Persistent profile after process restart | **PASS** | A new Node/Chromium process reopened the same profile at 08:43:29 UTC and detected `CONNECTED` without another login. |
 | 6 | Browser close/reopen | **PASS** | No spike `chrome.exe` process remained after scripts exited; profile directory survived. |
@@ -62,7 +62,9 @@ Playwright and Electron ship different Chromium versions. This is expected and a
 
 ### 5.1 Network access
 
-Direct TCP 443 to `web.telegram.org` (149.154.167.99) failed from the test network. A local HTTP proxy reached `https://web.telegram.org/` with HTTP 200. The spike therefore accepts an optional Playwright `proxy` setting. This is an environment constraint, not a Telegram API dependency. It must be addressed before live-user testing (see D-006).
+Direct TCP 443 to `web.telegram.org` (149.154.167.99) failed from the test network. A local HTTP proxy listener already running on the machine reached `https://web.telegram.org/` with HTTP 200.
+
+Phase 0 passed that proxy **explicitly** to Playwright through `SPIKE_PROXY`; the Windows system proxy (`ProxyEnable`) was off at test time. Therefore, automatic inheritance of the OS/VPN proxy by Chromium was **not proven** in Phase 0. D-006 is approved as **System Proxy First + Manual Fallback**; its implementation and the automatic-vs-explicit check belong to Phase 2 (Browser Manager), because Phase 1 has no browser.
 
 ### 5.2 Telegram Web variant and selectors
 
@@ -74,9 +76,11 @@ Observed variant: **WebZ at `/k/`** (the default redirect from `https://web.tele
 
 Consequence for the Adapter: selector **presence is not enough**; every state check must use visibility. The detector already does this. The `/a/` (WebA) variant was not evaluated and is out of scope unless approved.
 
-### 5.3 Manual QR login
+### 5.3 Manual QR login and 2FA
 
-The user scanned the QR in the visible Chromium window. The spike received no phone number, QR payload, login code or 2FA password. The QR/canvas was never screenshotted or logged. Detection poll interval was 2 seconds; transition to `CONNECTED` was observed within the next poll.
+The user scanned the QR in the visible Chromium window and completed the two-step verification prompt manually. The spike received no phone number, QR payload, login code or 2FA password. The QR/canvas was never screenshotted or logged. Detection poll interval was 2 seconds; transition to `CONNECTED` was observed within the next poll.
+
+The 2FA step is user-confirmed, not automated evidence: the spike only observes the final visible login state, so it neither knows nor records which authentication path the user used.
 
 ### 5.4 Session persistence
 
@@ -114,18 +118,18 @@ Phase 0 reads no message content. It checks only login state and a visible chat-
 
 ## 8. Go / No-Go
 
-**GO — conditional** for Phase 1.
+**GO — approved** for Phase 1.
 
-The core premise is proven: a real account logged in through visible Telegram Web without API credentials, the session survived a browser-process restart, the chat list was readable, and the profile was locked. No private endpoint or credential was used.
+The core premise is proven: a real account logged in through visible Telegram Web without API credentials, the session survived a browser-process restart, the chat list was readable, and the profile was locked. No private endpoint or credential was used. The project owner approved the results and decisions D-001, D-003 and D-006 on 2026-11-10.
 
 Conditions before/while proceeding:
 
 1. Pin Node 26.13.0, Electron 45.2.3, Playwright 1.65.0 and MCP SDK 1.32.2; commit lockfiles.
 2. Bundle and integrity-check the matching Chromium; do not download at runtime.
 3. Centralize selectors, use visibility checks, and fail closed with `TELEGRAM_UI_CHANGED`/`LOGIN_REQUIRED`.
-4. Resolve the network/proxy strategy (D-006) before real-user onboarding.
+4. Implement D-006 in Phase 2: test whether Chromium inherits the OS/VPN proxy, then add an explicit HTTP/SOCKS5 fallback only if needed. No hardcoded proxy, no port scanning, no changes to the user's OS proxy settings.
 5. Keep the AI/compliance gate closed; no message-content tools in the MVP.
-6. Add later manual tests: Phone Login, 2FA, Windows restart, Electron restart, session revoke, three accounts.
+6. Add later manual tests: Phone Login, Windows restart, Electron restart, session revoke, three accounts. (QR + 2FA are already user-confirmed.)
 7. Add profile ACL, backup/restore and corruption handling in hardening.
 
 **No-Go triggers (none observed):** Telegram blocks headed automation, login requires private APIs, or the session cannot persist.
@@ -134,12 +138,14 @@ Conditions before/while proceeding:
 
 | ID | Decision | Status |
 |---|---|---|
-| D-001 | MVP targets WebZ at `/k/` (default redirect). `/a/` not evaluated. | Resolved for MVP — pending user approval |
-| D-003 | Node 26.13.0 LTS, Electron 45.2.3, Playwright 1.65.0 (Chrome for Testing 158.0.8127.18), MCP SDK 1.32.2, TypeScript 5.9.3, Zod 4.6.7. | Proposed — pending user approval |
-| D-006 | Network/proxy strategy: rely on OS-level VPN/proxy, or add an explicit app proxy setting. | New — open |
+| D-001 | MVP targets WebZ at `/k/` (default redirect). `/a/` not evaluated. Selectors centralized; login detection uses visibility. | **Accepted (2026-11-10)** |
+| D-003 | Node 26.13.0 LTS, Electron 45.2.3, Playwright 1.65.0 (Chrome for Testing 158.0.8127.18), MCP SDK 1.32.2, TypeScript 5.9.3, Zod 4.6.7. | **Accepted (2026-11-10)** |
+| D-006 | **System Proxy First + Manual Fallback.** No hardcoded IP/port, no port scanning, no OS proxy changes, no proxy credentials in logs. Implementation in Phase 2. | **Accepted (2026-11-10)** |
 | D-002 | Named Pipe ACL approach. | Open (Phase 5) |
 | D-004 | AI content processing / consent. | Blocked |
 | D-005 | Windows 10 support. | Open (not tested) |
+
+Accepted decisions are recorded in `ARCHITECTURE_DECISIONS.md` as ADR-011 through ADR-014.
 
 ## 10. Reproduction
 

@@ -47,3 +47,32 @@
 ## ADR-010 — No Background Polling in MVP
 **تصمیم:** هیچ پایش دائمی چت‌ها در MVP انجام نشود.
 **دلیل:** کاهش CPU، رفتار قابل پیش‌بینی، کاهش داده جمع‌آوری‌شده و کنترل Token Usage.
+
+## ADR-011 — Telegram Web Variant: WebZ `/k/`
+**تصمیم:** MVP فقط از `https://web.telegram.org/k/` (WebZ) استفاده کند. Variant `/a/` فعلاً پیاده‌سازی یا بررسی نشود.
+**دلیل:** مسیر پیش‌فرض `web.telegram.org` در Phase 0 به `/k/` هدایت شد و ورود QR + 2FA، حفظ Session و خواندن فهرست چت با موفقیت تست شد.
+**قانون:** تمام Selectorها در یک Adapter متمرکز باشند و تشخیص Login بر اساس Visibility عناصر باشد، نه صرفاً وجود آن‌ها در DOM.
+**هزینه/ریسک:** وابستگی به DOM متغیر WebZ؛ تغییر UI باید `TELEGRAM_UI_CHANGED` بدهد و عملیات متوقف شود.
+
+## ADR-012 — Pinned MVP Stack
+**تصمیم:** نسخه‌های مبنا:
+- Node.js `26.13.0` LTS
+- Electron `45.2.3`
+- Playwright `1.65.0`
+- Chromium `158.0.8127.18` (Chrome for Testing، revision 1254)
+- MCP TypeScript SDK `1.32.2`
+- TypeScript `5.9.3`
+- Zod `4.6.7`
+**قانون:** نسخه‌ها و Lockfile Commit شوند و بدون دلیل فنی تغییر نکنند. سازگاری Peer Dependency در Phase 1 بررسی و ثبت شد.
+**هزینه/ریسک:** ارتقای Playwright/Chromium می‌تواند روی Profile اثر بگذارد؛ ابتدا روی Profile آزمایشی تست شود.
+
+## ADR-013 — Proxy Strategy: System Proxy First + Manual Fallback
+**تصمیم:** ابتدا مسیر Proxy/VPN سیستم استفاده شود؛ اگر اتصال به Telegram Web برقرار نشد، خطای قابل فهم نمایش داده شود و در صورت نیاز تنظیم دستی HTTP یا SOCKS5 فراهم شود.
+**ممنوع:** Hardcode کردن IP/Port، اسکن پورت‌های سیستم، ساخت Proxy Manager پیچیده، تغییر تنظیمات Proxy سایر برنامه‌ها، یا ثبت Credential پروکسی در Log.
+**وضعیت:** تصمیم پذیرفته شده؛ پیاده‌سازی و اثبات خودکاربودن استفاده از Proxy سیستم در Phase 2 (Browser Manager) انجام شود.
+**نکته Phase 0:** دسترسی مستقیم به Telegram مسدود بود و Phase 0 یک Proxy محلی را به‌صورت صریح به Playwright داد؛ استفاده خودکار از Proxy سیستم در Phase 0 اثبات نشده است.
+
+## ADR-014 — Runtime Separation
+**تصمیم:** Electron Main از Node Runtime داخلی Electron استفاده کند. MCP Bridge در زمان بسته‌بندی یک Node.js مستقل و Pin شده همراه برنامه داشته باشد.
+**دلیل:** جلوگیری از اشتباه بین Runtime دسکتاپ و Runtime پردازه Bridge و حفظ رفتار قابل تکرار.
+**قانون:** Playwright و Chromium نسخه سازگار و Pin شده داشته باشند و Chromium همراه Installer توزیع شود؛ برنامه در اولین اجرا Browser دانلود نکند.

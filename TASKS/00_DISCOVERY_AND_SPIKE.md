@@ -31,9 +31,11 @@ Priority: P0 | Depends on: None | Commit: `docs(spike): record Telegram Web feas
 
 ## Result (2026-11-10)
 
-**GO — conditional.** All Phase 0 checks passed on Windows 11 x64 with Playwright 1.65.0 (Chrome for Testing 158.0.8127.18) and the WebZ `/k/` variant. The test account logged in through the visible UI, the session survived a new browser process on the same profile, 15 chat items were readable, and a second profile instance was blocked.
+**GO — approved (2026-11-10).** All Phase 0 checks passed on Windows 11 x64 with Playwright 1.65.0 (Chrome for Testing 158.0.8127.18) and the WebZ `/k/` variant. The test account logged in through the visible UI (QR + manual 2FA), the session survived a new browser process on the same profile, 15 chat items were readable, and a second profile instance was blocked.
 
-Not tested in Phase 0 (deferred): Phone Login, 2FA, full Windows restart, Electron app restart, session revocation, three-account isolation, profile ACL/backup. Direct Telegram access was blocked on the test network; a local HTTP proxy was used.
+Proxy behavior: direct Telegram access was blocked on the test network; Phase 0 passed an already-running local HTTP proxy explicitly to Playwright (`SPIKE_PROXY`). Windows system proxy was off, so automatic OS/VPN inheritance was not proven. D-006 is approved as **System Proxy First + Manual Fallback** and will be implemented/tested in Phase 2.
+
+Not tested in Phase 0 (deferred): Phone Login, full Windows restart, Electron app restart, session revocation, three-account isolation, profile ACL/backup.
 
 Full report: `docs/spike/PHASE0_REPORT.md`. Evidence: `spike/logs/spike-state.jsonl`.
 
