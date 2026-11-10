@@ -63,22 +63,19 @@ function mapChatType(value: string | null): ChatType {
 export async function detectMainSurface(probe: TelegramDomProbe): Promise<MainSurface> {
   if (await anyVisible(probe, SELECTORS.authPage)) return "login_required";
   const shell = await anyVisible(probe, SELECTORS.mainShell);
-  if (!shell) {
-    if (await anyVisible(probe, SELECTORS.loading)) return "loading";
-    return "ui_changed";
-  }
+  if (shell) return "ready";
   if (await anyVisible(probe, SELECTORS.loading)) return "loading";
-  return "ready";
+  return "ui_changed";
 }
 
 export async function detectChatList(probe: TelegramDomProbe): Promise<ChatListState> {
   if (await anyVisible(probe, SELECTORS.authPage)) return { state: "ui_changed" };
   if (!(await anyVisible(probe, SELECTORS.mainShell))) return { state: "ui_changed" };
-  if (await anyVisible(probe, SELECTORS.loading)) return { state: "loading" };
 
+  // A loading preloader may belong to the message area, so rows win here.
   const itemCount = await countAny(probe, SELECTORS.chatRows);
   if (itemCount > 0) return { state: "ready", itemCount };
-
+  if (await anyVisible(probe, SELECTORS.chatListLoading)) return { state: "loading" };
   if (await anyVisible(probe, SELECTORS.emptyState)) return { state: "empty" };
   return { state: "empty" };
 }

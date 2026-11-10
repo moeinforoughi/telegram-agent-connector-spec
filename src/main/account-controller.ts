@@ -69,6 +69,12 @@ export class AccountController {
     return { ...this.view };
   }
 
+  /** Main-only: the live page for read-only Telegram operations. */
+  getPage(): Page | undefined {
+    if (!this.deps.browser.running || !this.page) return undefined;
+    return this.page.isClosed() ? undefined : this.page;
+  }
+
   /** Called by AccountManager after a rename. */
   updateLabel(label: string): void {
     if (this.account) this.account = { ...this.account, label };

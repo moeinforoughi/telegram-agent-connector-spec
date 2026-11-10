@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <body>
+    <div id="page-chats" class="whole page-chats">
+      <div id="column-left">
+        <div id="chatlist-container">
+          <a class="chatlist-chat" data-peer-id="4001">
+            <div class="dialog-title"><span class="peer-title">Openable Chat</span></div>
+            <div class="dialog-subtitle">preview</div>
+          </a>
+        </div>
+      </div>
+      <div id="column-center"></div>
+    </div>
+    <script>
+      document.querySelector(".chatlist-chat").addEventListener("click", function () {
+        document.querySelector("#column-center").innerHTML =
+          '<div class="chats-container"><div class="chat active" data-type="chat">' +
+          '<div class="topbar"><div class="peer-title" data-peer-id="4001">Openable Chat</div></div>' +
+          '<div class="bubbles"><div class="bubble is-in" data-mid="11">' +
+          '<div class="message">hello</div></div></div></div></div>';
+      });
+    </script>
+  </body>
+</html>

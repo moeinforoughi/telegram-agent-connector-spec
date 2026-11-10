@@ -29,6 +29,7 @@ function probe(config: ProbeConfig = {}): TelegramDomProbe {
 const SHELL = SELECTORS.mainShell[0] ?? "";
 const AUTH = SELECTORS.authPage[0] ?? "";
 const LOADING = SELECTORS.loading[0] ?? "";
+const CHAT_LIST_LOADING = SELECTORS.chatListLoading[0] ?? "";
 const CHAT_ROW = SELECTORS.chatRows[0] ?? "";
 const OPEN_CHAT = SELECTORS.openChat[0] ?? "";
 const TITLE = SELECTORS.chatTitle[0] ?? "";
@@ -61,7 +62,7 @@ describe("detectChatList", () => {
 
   it("reports empty, loading and changed states", async () => {
     expect(await detectChatList(probe({ visible: [SHELL] }))).toEqual({ state: "empty" });
-    expect(await detectChatList(probe({ visible: [SHELL, LOADING] }))).toEqual({
+    expect(await detectChatList(probe({ visible: [SHELL, CHAT_LIST_LOADING] }))).toEqual({
       state: "loading",
     });
     expect(await detectChatList(probe({ visible: [AUTH] }))).toEqual({ state: "ui_changed" });

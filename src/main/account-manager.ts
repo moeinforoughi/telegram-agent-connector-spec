@@ -60,6 +60,11 @@ export class AccountManager {
     return count;
   }
 
+  /** Main-only: the live page for one account (undefined when not running). */
+  getPage(id: string): Page | undefined {
+    return this.runtimes.get(id)?.controller.getPage();
+  }
+
   get hasRunningBrowsers(): boolean {
     return this.activeBrowserCount > 0;
   }
