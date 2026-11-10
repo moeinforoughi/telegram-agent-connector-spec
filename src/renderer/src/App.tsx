@@ -118,6 +118,7 @@ export function App() {
     null,
   );
   const proxyTouched = useRef(false);
+  const creatingRef = useRef(false);
 
   const updateAccount = useCallback((next: AccountView) => {
     setAccounts((current) => {
@@ -161,6 +162,8 @@ export function App() {
   }, [updateAccount]);
 
   const createAccount = useCallback(async () => {
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setCreating(true);
     setFailure(null);
     try {
@@ -175,6 +178,7 @@ export function App() {
     } catch {
       setFailure("Could not create the account.");
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
   }, [newLabel, updateAccount]);
