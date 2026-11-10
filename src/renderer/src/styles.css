@@ -95,6 +95,43 @@ code {
   color: #fda4af;
 }
 
+.hint {
+  margin: 18px 0 0;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+button {
+  padding: 9px 16px;
+  border: 1px solid #334155;
+  border-radius: 9px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #273449;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button.danger {
+  border-color: #7f1d1d;
+  color: #fecaca;
+}
+
 footer {
   margin-top: 32px;
   color: #64748b;

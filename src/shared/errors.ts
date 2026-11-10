@@ -16,6 +16,7 @@ export const ERROR_CODES = [
   "RATE_LIMIT_OR_FLOOD_WAIT",
   "OUTCOME_UNKNOWN",
   "TIMEOUT",
+  "INVALID_ARGUMENT",
   "INTERNAL_ERROR",
 ] as const;
 

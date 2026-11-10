@@ -3,8 +3,15 @@ import { IPC_ALLOWLIST, IPC_CHANNELS } from "../../src/shared/ipc";
 import { isTrustedSender } from "../../src/main/trusted-sender";
 
 describe("IPC allowlist", () => {
-  it("contains exactly the intended channel", () => {
-    expect(IPC_ALLOWLIST).toEqual([IPC_CHANNELS.getAppInfo]);
+  it("contains exactly the intended channels", () => {
+    expect(IPC_ALLOWLIST).toEqual([
+      IPC_CHANNELS.getAppInfo,
+      IPC_CHANNELS.getAccount,
+      IPC_CHANNELS.startAccount,
+      IPC_CHANNELS.stopAccount,
+      IPC_CHANNELS.openTelegram,
+      IPC_CHANNELS.removeAccount,
+    ]);
   });
 
   it("does not contain duplicate channels", () => {

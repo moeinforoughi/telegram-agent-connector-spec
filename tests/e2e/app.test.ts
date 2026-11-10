@@ -16,6 +16,7 @@ let userDataDir: string | undefined;
 
 async function launchApp(): Promise<{ app: ElectronApplication; page: Page }> {
   userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "tac-e2e-"));
+  const browsersPath = path.join(projectRoot, "spike", ".browsers");
   const launched = await electron.launch({
     args: [projectRoot],
     cwd: projectRoot,
@@ -23,6 +24,9 @@ async function launchApp(): Promise<{ app: ElectronApplication; page: Page }> {
       ...process.env,
       CONNECTOR_USER_DATA_DIR: userDataDir,
       NODE_ENV: "test",
+      ...(fs.existsSync(browsersPath) && !process.env.PLAYWRIGHT_BROWSERS_PATH
+        ? { PLAYWRIGHT_BROWSERS_PATH: browsersPath }
+        : {}),
     },
   });
   app = launched;
@@ -74,7 +78,15 @@ describe("Electron shell", () => {
     expect(renderer.process).toBe("undefined");
     expect(renderer.Buffer).toBe("undefined");
     expect(renderer.module).toBe("undefined");
-    expect(renderer.apiKeys).toEqual(["getAppInfo"]);
+    expect(renderer.apiKeys).toEqual([
+      "getAppInfo",
+      "getAccount",
+      "startAccount",
+      "stopAccount",
+      "openTelegram",
+      "removeAccount",
+      "onAccountStatus",
+    ]);
     expect(renderer.hasIpcRenderer).toBe(false);
   });
 
@@ -105,6 +117,61 @@ describe("Electron shell", () => {
     for (const directory of ["config", "profiles", "logs", "cache", "backups"]) {
       expect(fs.existsSync(path.join(dataRoot, directory))).toBe(true);
     }
+  });
+
+  it("shows the single-account dashboard without exposing local paths", async () => {
+    const launched = await launchApp();
+
+    const account = await launched.page.evaluate(() =>
+      (globalThis as unknown as { api: { getAccount(): Promise<unknown> } }).api.getAccount(),
+    );
+
+    expect(account).toEqual({
+      ok: true,
+      data: { id: null, label: "No account", status: "disconnected" },
+    });
+    expect(JSON.stringify(account)).not.toContain(userDataDir);
+    expect(await launched.page.locator("#status-heading").textContent()).toBe(
+      "No account connected",
+    );
+    expect(await launched.page.getByRole("button", { name: "Add Account" }).count()).toBe(1);
+  });
+
+  it("loads Playwright and launches a browser from the Electron main process", async () => {
+    const launched = await launchApp();
+
+    const heading = await launched.app.evaluate(async ({ app: electronApp }) => {
+      // Playwright is externalized by electron-vite, so Main resolves it from
+      // the app root. app.evaluate has no dynamic import callback, hence the
+      // absolute require through the Electron main module.
+      type PlaywrightModule = {
+        chromium: {
+          launch(options: { headless: boolean }): Promise<{
+            newPage(): Promise<{
+              setContent(html: string): Promise<void>;
+              locator(selector: string): { textContent(): Promise<string | null> };
+            }>;
+            close(): Promise<void>;
+          }>;
+        };
+      };
+
+      const mainModule = process.mainModule;
+      if (!mainModule) throw new Error("Electron main module is unavailable");
+      const playwrightPath = `${electronApp.getAppPath()}/node_modules/playwright`;
+      const { chromium } = mainModule.require(playwrightPath) as PlaywrightModule;
+
+      const browser = await chromium.launch({ headless: true });
+      try {
+        const page = await browser.newPage();
+        await page.setContent("<h1>electron-main-playwright</h1>");
+        return await page.locator("h1").textContent();
+      } finally {
+        await browser.close();
+      }
+    });
+
+    expect(heading).toBe("electron-main-playwright");
   });
 
   it("blocks remote navigation and new windows", async () => {

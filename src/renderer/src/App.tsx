@@ -1,50 +1,92 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { AccountStatus, AccountView } from "../../shared/account";
 import { APP_NAME } from "../../shared/constants";
+import type { IpcResult } from "../../shared/ipc";
 import type { AppInfo } from "../../shared/types";
 
-type LoadState =
-  | { readonly status: "loading" }
-  | { readonly status: "ready"; readonly info: AppInfo }
-  | { readonly status: "error"; readonly message: string };
+const EMPTY_VIEW: AccountView = { id: null, label: "No account", status: "disconnected" };
+
+const STATUS_LABELS: Record<AccountStatus, string> = {
+  disconnected: "Disconnected",
+  initializing: "Starting browser",
+  waiting_for_login: "Waiting for login",
+  authenticating: "Completing sign-in",
+  connected: "Connected",
+  error: "Error",
+};
+
+const LOGIN_LABELS = {
+  LOGIN_REQUIRED: "Waiting for QR / login",
+  AUTHENTICATING: "Completing sign-in",
+  CONNECTED: "Connected",
+  UNKNOWN: "Checking…",
+} as const;
+
+function browserOpen(view: AccountView): boolean {
+  return ["initializing", "waiting_for_login", "authenticating", "connected"].includes(view.status);
+}
 
 export function App() {
-  const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [view, setView] = useState<AccountView>(EMPTY_VIEW);
+  const [info, setInfo] = useState<AppInfo | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    let active = true;
-
     if (!window.api) {
-      setState({ status: "error", message: "Preload API is unavailable." });
-      return () => {
-        active = false;
-      };
+      setFailure("Preload API is unavailable.");
+      return;
     }
 
-    window.api
-      .getAppInfo()
-      .then((result) => {
-        if (!active) return;
-        if (result.ok) {
-          setState({ status: "ready", info: result.data });
-        } else {
-          setState({ status: "error", message: result.error.message });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setState({ status: "error", message: "Failed to load application information." });
-        }
-      });
+    let active = true;
+    window.api.getAppInfo().then((result) => {
+      if (active && result.ok) setInfo(result.data);
+    });
+    window.api.getAccount().then((result) => {
+      if (!active) return;
+      if (result.ok) setView(result.data);
+      else setFailure(result.error.message);
+    });
+    const unsubscribe = window.api.onAccountStatus((next) => {
+      if (active) setView(next);
+    });
 
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
+
+  const run = useCallback(async (action: () => Promise<IpcResult<AccountView>>) => {
+    setBusy(true);
+    setFailure(null);
+    try {
+      const result = await action();
+      if (result.ok) setView(result.data);
+      else setFailure(result.error.message);
+    } catch {
+      setFailure("The operation failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const removeAccount = useCallback(() => {
+    const confirmed = window.confirm(
+      "Remove this account? This deletes its local browser profile and cached Telegram session.",
+    );
+    if (confirmed) {
+      void run(() => window.api.removeAccount({ deleteProfile: true }));
+    }
+  }, [run]);
+
+  const errorMessage = failure ?? view.error?.message;
+  const hasAccount = view.id !== null;
 
   return (
     <main className="shell">
       <header>
-        <p className="eyebrow">Phase 1 · Repository Foundation</p>
+        <p className="eyebrow">Phase 2 · Browser Manager</p>
         <h1>{APP_NAME}</h1>
         <p className="subtitle">
           Local Windows connector. Unofficial and not affiliated with Telegram.
@@ -52,33 +94,99 @@ export function App() {
       </header>
 
       <section className="card" aria-labelledby="status-heading">
-        <h2 id="status-heading">Runtime status</h2>
-        {state.status === "loading" ? <p>Loading…</p> : null}
-        {state.status === "error" ? <p className="error">{state.message}</p> : null}
-        {state.status === "ready" ? (
-          <dl>
+        <h2 id="status-heading">{hasAccount ? view.label : "No account connected"}</h2>
+
+        <dl>
+          <div>
+            <dt>Connector</dt>
+            <dd>{info ? "Ready" : "Starting…"}</dd>
+          </div>
+          <div>
+            <dt>Account status</dt>
+            <dd>{STATUS_LABELS[view.status]}</dd>
+          </div>
+          <div>
+            <dt>Browser</dt>
+            <dd>{browserOpen(view) ? "Open" : "Closed"}</dd>
+          </div>
+          <div>
+            <dt>Login</dt>
+            <dd>{view.loginState ? LOGIN_LABELS[view.loginState] : "Not checked"}</dd>
+          </div>
+          {view.lastConnectedAt ? (
             <div>
-              <dt>App version</dt>
-              <dd>{state.info.appVersion}</dd>
+              <dt>Last connected</dt>
+              <dd>{new Date(view.lastConnectedAt).toLocaleString()}</dd>
             </div>
-            <div>
-              <dt>Platform</dt>
-              <dd>{state.info.platform}</dd>
-            </div>
-            <div>
-              <dt>Data storage</dt>
-              <dd>Local application data</dd>
-            </div>
-            <div>
-              <dt>Renderer isolation</dt>
-              <dd>Enabled</dd>
-            </div>
-          </dl>
+          ) : null}
+        </dl>
+
+        {errorMessage ? (
+          <p className="error" role="alert">
+            {errorMessage}
+          </p>
         ) : null}
+
+        {view.status === "waiting_for_login" || view.status === "authenticating" ? (
+          <p className="hint">
+            Scan the QR code in the Telegram window. If Telegram asks for a code or two-step
+            password, enter it there. The connector never sees or stores it.
+          </p>
+        ) : null}
+
+        <div className="actions">
+          {!hasAccount ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(() => window.api.startAccount())}
+            >
+              Add Account
+            </button>
+          ) : null}
+
+          {hasAccount && ["disconnected", "error"].includes(view.status) ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(() => window.api.startAccount())}
+            >
+              {view.status === "error" ? "Reconnect" : "Connect"}
+            </button>
+          ) : null}
+
+          {hasAccount && browserOpen(view) ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(() => window.api.openTelegram())}
+            >
+              Open Telegram
+            </button>
+          ) : null}
+
+          {hasAccount && (view.status === "connected" || browserOpen(view)) ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(() => window.api.stopAccount())}
+            >
+              Disconnect
+            </button>
+          ) : null}
+
+          {hasAccount ? (
+            <button type="button" className="danger" disabled={busy} onClick={removeAccount}>
+              Remove Account
+            </button>
+          ) : null}
+        </div>
       </section>
 
       <footer>
-        Accounts, browser automation and MCP are intentionally not part of this phase.
+        {info ? `${info.appName} ${info.appVersion} · ${info.platform}` : null}
+        <br />
+        Multi-account, Telegram tools, and MCP are not part of this phase.
       </footer>
     </main>
   );
