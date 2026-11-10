@@ -31,12 +31,14 @@ Before changing anything:
 
 ## Current state (2026-11-10)
 
-Phase 2 is **Partially Verified**: all automated tests pass (108 unit, 13
-integration, 11 E2E) and the manual proxy configuration is implemented, but the
-live QR/2FA/session/restart/proxy checklist in `docs/phase2/PHASE2_REPORT.md` §8
-is Pending and needs the user. Tasks 1–8, the manual proxy fix (`67cb669`) and
-the saved-proxy application fix (`51714cf`) are committed. Phase 3 is not
-authorized.
+Phase 2 is **Partially Verified**: real Telegram login and browser-restart
+session persistence PASS (successful proxy: SOCKS5 `127.0.0.1:12334`). Electron
+full restart, Windows restart, proxy loss/recovery, and session revoke detection
+are still Pending; QR-vs-phone and 2FA were not recorded. Tasks 1–8 and both
+proxy fixes (`67cb669`, `51714cf`) are committed. Phase 3 is not authorized.
+
+Do not ask the user to repeat real login or browser close/reopen; those are
+already PASS. See `docs/phase2/PHASE2_REPORT.md` §3.1 and §8.
 
 Proxy rules (permanent): the connector uses only the user's saved manual proxy
 (SOCKS5/HTTP, host, port, optional credentials). There is no system-proxy

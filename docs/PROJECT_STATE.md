@@ -46,17 +46,17 @@ implied affiliation.
 |---|---|---|
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
-| 2 — Browser Manager, proxy, single account login | **Partially Verified** — automated green, live manual pending | `docs/phase2/PHASE2_PLAN.md`, `docs/phase2/PHASE2_REPORT.md`; Tasks 1–8 committed |
+| 2 — Browser Manager, proxy, single account login | **Partially Verified** — real login + browser-restart session PASS; Electron/Windows restart, proxy loss, revoke pending | `docs/phase2/PHASE2_PLAN.md`, `docs/phase2/PHASE2_REPORT.md`; Tasks 1–8 and proxy fixes committed |
 | 3+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 2 final proxy fix — implementation and automated verification are complete
-(`67cb669`). The live checklist in `docs/phase2/PHASE2_REPORT.md` §8 is
-**Pending**: the user must set the proxy in the UI (default SOCKS5
-`127.0.0.1:10808`), run Test Proxy, connect, complete QR/2FA, and verify
-restart/session/proxy-loss behavior. Phase 2 stays "Partially Verified" until
-those steps are recorded. Do not start Phase 3.
+Phase 2 remaining live verification. **PASS:** real Telegram login (Connected)
+and browser close/reopen session persistence; the successful proxy was SOCKS5
+`127.0.0.1:12334`. **Pending:** Electron full restart, Windows full restart,
+proxy loss/recovery, session revoke detection, and explicit confirmation of QR
+vs phone login and 2FA. Phase 2 stays "Partially Verified" until these are
+recorded. Do not start Phase 3.
 
 ## Session-Independent Development
 
@@ -123,8 +123,20 @@ code, and test evidence win.
   integration, 11 E2E, build, typecheck, lint, format.
 - Real environment evidence (2026-11-10): the probe reached
   `web.telegram.org:443` through both local proxies (`127.0.0.1:10808` and
-  `127.0.0.1:12334`), and Chromium loaded `https://web.telegram.org/k/` with
-  HTTP 200 through `socks5://127.0.0.1:10808`. QR/2FA is still Pending.
+  `127.0.0.1:12334`). Chromium navigation through 10808 failed (route/upstream),
+  while 12334 loaded `https://web.telegram.org/k/` with HTTP 200.
+- Live manual results (2026-11-10, user-run): real Telegram login **PASS**
+  (Connected); browser close/reopen **PASS**; session persistence across browser
+  restart **PASS**. The final successful proxy was SOCKS5
+  `127.0.0.1:12334` (Hiddify). `PROXY_ERROR` on 10808 meant Telegram was not
+  reachable through that proxy route, not a closed port. The login method
+  (QR vs phone) and 2FA were not recorded, so they are **not** marked PASS.
+  Electron restart, Windows restart, proxy loss/recovery, and revoke detection
+  remain **Pending**.
+- Current environment state: `config/proxy.json` is enabled with SOCKS5
+  `127.0.0.1:12334`; `config/accounts.json` is `[]` and `profiles/` is empty at
+  documentation time, so the test account/profile was removed or used a
+  different `CONNECTOR_USER_DATA_DIR`. The PASS results are user-confirmed.
 - The account renderer never receives profile paths or credentials;
   `AccountView` carries status metadata only. Proxy credentials never reach the
   renderer (`hasPassword` only) and are never stored in plain text.
@@ -137,9 +149,14 @@ code, and test evidence win.
   `bad option: --remote-debugging-port=0`. The E2E launcher now strips it from
   the child environment, so `npm run check` works regardless; `npm run dev` in
   that shell still needs it unset. No Windows environment change is made.
-- Live QR/2FA/session-restart/Electron-restart/proxy operations are **Pending**
-  and require the user; see `docs/phase2/PHASE2_REPORT.md` §8. Phase 2 is
-  therefore Partially Verified, not complete.
+- Live QR/2FA confirmation, Electron/Windows restart, proxy loss/recovery, and
+  revoke detection are **Pending**; see `docs/phase2/PHASE2_REPORT.md` §8.
+  Phase 2 is therefore Partially Verified, not complete.
+- Known architecture gap: the browser close reason is not modelled. An
+  intentional user close currently becomes a `BROWSER_CLOSED` error; a crash is
+  only logged. Browser runtime state and stored session state are not yet
+  separate in the view. Documented in `PHASE2_REPORT.md` §6 and the handoff;
+  not implemented because this turn was documentation-only.
 
 ## Important Commits
 

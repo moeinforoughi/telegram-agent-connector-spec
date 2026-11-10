@@ -1,8 +1,9 @@
 # Phase 2 — Final Verification Report
 
-Status: **Partially Verified — automated verification passed; live Telegram
-QR/2FA/session checks pending user execution.** Phase 2 is **not** declared
-complete.
+Status: **Partially Verified — automated verification passed; real Telegram
+login and browser-restart session PASS. Electron/Windows restart, proxy
+loss/recovery, session revoke, and QR/2FA confirmation are still pending.**
+Phase 2 is **not** declared complete.
 
 Date: 2026-11-10
 Branch: `main`
@@ -62,6 +63,66 @@ Result: **exit 0** on commit `51714cf`.
 | Build | `electron-vite build` | Pass |
 | Electron E2E | `vitest run tests/e2e` | 1 file / 11 tests pass |
 
+## 3.1 Live manual results (2026-11-10)
+
+The user ran the app on Windows with a real personal Telegram account.
+
+| Test | Result | Evidence |
+|---|---|---|
+| Real Telegram login | **PASS** | Chromium opened; login completed; dashboard showed Account status Connected and Login Connected |
+| Login method (QR vs phone) | Not recorded | The user did not specify the method; QR is not marked PASS |
+| 2FA | Not confirmed | Not reported as performed; not marked PASS |
+| Browser close / reopen | **PASS** | Browser reopened and Telegram stayed logged in |
+| Session persistence across browser restart | **PASS** | No new QR or login was needed |
+| Electron full restart | **Pending** | Not run yet |
+| Windows full restart | **Pending** | Not run yet |
+| Proxy loss / recovery in the app | **Pending** | Not run yet |
+| Session revoke detection | **Pending** | Not run yet |
+
+### Which proxy and port succeeded
+
+- The persisted `config/proxy.json` at test time was:
+  `enabled: true`, `protocol: socks5`, `host: 127.0.0.1`, `port: 12334`.
+- The final successful connection therefore used **SOCKS5 `127.0.0.1:12334`
+  (Hiddify)**, not 10808.
+- Attempts through 10808 produced `PROXY_ERROR`; 12334 progressed and reached
+  the Connected state.
+
+### Why 10808 produced PROXY_ERROR
+
+- A post-test re-check showed both 10808 and 12334 accept a TCP tunnel to
+  `web.telegram.org:443`.
+- However, a fresh Chromium navigation through `socks5://127.0.0.1:10808`
+  failed, while the same navigation through `socks5://127.0.0.1:12334` returned
+  HTTP 200 and loaded Telegram Web.
+- `PROXY_ERROR` in this case means **Telegram Web was not reachable through that
+  proxy route**; it does not mean the port was closed, and the connector did not
+  fall back to direct. Mapping a navigation failure under an enabled proxy to
+  `PROXY_ERROR` is the intended fail-closed behavior.
+- Limitation: `PROXY_ERROR` conflates "proxy unavailable" with "Telegram
+  unreachable through the proxy". Test Proxy proves a TCP tunnel, not Telegram
+  TLS/HTTP reachability.
+
+### TELEGRAM_UI_CHANGED
+
+- It can come from two code paths: `openTelegram` when the final URL is not
+  WebZ `/k/`, or the login monitor when the UI stays `UNKNOWN` for 20 seconds.
+- The exact branch cannot be attributed because the app logs to the console and
+  does not persist a log file (`logs/` was empty). It occurred during an earlier
+  attempt and did not persist: the final attempt reached `/k/` and Connected.
+- Limitation: no persisted, redacted technical log exists for post-mortem
+  analysis.
+
+### Evidence caveat
+
+At documentation time the default data directory
+(`%LOCALAPPDATA%\UnofficialTelegramAgentConnector`) contains the 12334 proxy
+settings, but `config/accounts.json` is `[]` and `profiles/` is empty. The
+account/profile from this test is therefore not present in the default data
+directory now (removed after the test or the app was run with a different
+`CONNECTOR_USER_DATA_DIR`). The PASS results above are recorded from the user's
+report; the session itself cannot be re-inspected here.
+
 ## 4. Manual proxy configuration
 
 UI (Network / Proxy card):
@@ -84,9 +145,10 @@ keeps the user's selection.
 
 - `config/proxy.json` stores enabled, protocol, host, port and an encrypted
   credentials blob.
-- Username/password are encrypted with Electron `safeStorage` (DPAPI on
-  Windows). If encryption is unavailable, credentials are not written at all and
-  the UI warns.
+- Username/password are encrypted with the asynchronous Electron `safeStorage`
+  API (`encryptStringAsync` / `decryptStringAsync`, DPAPI on Windows). If
+  encryption is unavailable, credentials are not written at all and the UI
+  warns.
 - The file never contains the username or password in plain text; E2E reads the
   file and asserts this.
 - No proxy credential is logged or returned over IPC.
@@ -113,11 +175,12 @@ silent open port times out. Reported statuses:
 | Proxy loss / recovery | Integration: navigation fails down, succeeds after restart | Pass |
 | Settings persistence | Unit store + E2E relaunch with the same user data dir | Pass |
 | Credential protection | Unit + E2E file assertions; safeStorage unavailable path | Pass |
-| Chromium navigation through proxy | Integration HTTP and SOCKS5; real Telegram 200 via `10808` | Pass |
+| Chromium navigation through proxy | Integration HTTP and SOCKS5; real Telegram 200 via `12334` | Pass |
 | Browser preservation after navigation error | Controller unit + integration process/page assertions | Pass |
 | Saved settings reach Playwright | Integration: store → `toPlaywrightProxyConfig` → persistent Chromium → proxy request | Pass |
 | Enable toggle persists without Save | E2E reads `proxy.json` after only checking the box | Pass |
-| Real Telegram QR login / 2FA | Requires the user | Pending manual |
+| Real Telegram login | User-confirmed Connected state | **PASS** |
+| Real QR login / 2FA | Login method not recorded; 2FA not confirmed | Not confirmed |
 | Real proxy loss/recovery in the app | Requires the user | Pending manual |
 
 ### Real environment evidence (2026-11-10)
@@ -127,10 +190,12 @@ silent open port times out. Reported statuses:
   - `socks5://127.0.0.1:12334` — success (~1 ms)
   - `http://127.0.0.1:10808` — success (~10 ms)
 - Chromium loaded `https://web.telegram.org/k/` with HTTP 200, title
-  "Telegram Web", through `socks5://127.0.0.1:10808` (no login performed).
-- Live DOM inspection: `#auth-pages` and `#auth-pages canvas` exist after
-  Telegram Web boots, so the centralized selectors still recognize the login/QR
-  page.
+  "Telegram Web", through `socks5://127.0.0.1:12334` (no login performed).
+  A fresh navigation through `socks5://127.0.0.1:10808` failed at the same time
+  even though its TCP tunnel probe succeeded; see §3.1.
+- Live DOM inspection (through 12334): `#auth-pages` and
+  `#auth-pages canvas` exist after Telegram Web boots, so the centralized
+  selectors still recognize the login/QR page.
 
 ## 5.1 Saved-proxy root cause and fix (2026-11-10)
 
@@ -185,6 +250,26 @@ written immediately.
   page was closed. A late launch after `stop()` is closed instead of leaking.
 - A user-closed browser still maps to `BROWSER_CLOSED`; `stop()` closes
   intentionally.
+
+### Open architecture gap: close reason vs session state
+
+The user asked to distinguish three runtime situations and to keep the stored
+session separate from the browser runtime:
+
+- **Intentionally closed** (the user closes the Chromium window): currently
+  mapped to the `BROWSER_CLOSED` error view, because Playwright's context `close`
+  event does not say who closed it.
+- **Unexpectedly closed**: indistinguishable from the above at the context
+  level.
+- **Crashed**: `page.on("crash")` is only logged today, then the context close
+  looks the same as a normal close.
+
+The profile-backed session itself is separate from this runtime state and is not
+deleted when the browser closes (proven by the PASS browser-restart test). This
+turn was documentation-only, so the state model was not changed. Follow-up work
+(not started): model `browserRuntime: running | closed | crashed` separately from
+`session: stored | unknown | expired`, treat a user close as informational, and
+reserve error state for crashes/unexpected closes.
 
 ## 7. Task 7 review (unchanged by the proxy fix)
 
@@ -241,19 +326,30 @@ Notes:
 - A password typed into the form is not echoed after saving; `hasPassword`
   indicates that one is stored.
 
+### Checklist execution status (2026-11-10)
+
+- **Done:** proxy setup/test/save (1–3), Add Account/browser open (4), real
+  login (5; method not recorded), Connected (7), browser close (8; semantics gap
+  documented), reopen with session intact (9), Hiddify 12334 (14), results
+  recorded (16).
+- **Pending:** 2FA (6), Electron full restart (10), Windows restart (11), proxy
+  stop/restart (12–13), session revoke (15).
+- Step 5's QR-specific confirmation and step 6 remain **not confirmed**; do not
+  record them as PASS until actually performed and observed.
+
 ## 9. Phase 2 exit criteria
 
 | Criterion | Status |
 |---|---|
 | User can enter any proxy | Yes (UI + validation) |
 | Settings persist | Yes (automated) |
-| Chromium uses the selected proxy | Yes (integration + real Telegram 200) |
-| Telegram Web loads | Yes (real, through 10808) |
+| Chromium uses the selected proxy | Yes (integration + real login through 12334) |
+| Telegram Web loads | Yes (real, through 12334; the 10808 route failed) |
 | Browser is not closed on network error | Yes (unit + integration) |
-| Real QR login | Pending manual |
-| Real 2FA | Pending manual |
-| Session persistence with a real account | Pending manual |
-| Electron/Windows restart | Pending manual |
+| Real login | **PASS** (user-confirmed) |
+| Real QR login | Login PASS; QR method not recorded |
+| Real 2FA | Not confirmed |
+| Session persistence with a real account | Browser restart **PASS**; Electron/Windows restart pending |
 | Automated tests pass | Yes (`51714cf`) |
 | Runtime limits documented | Yes |
 | Architecture docs updated | Yes |
@@ -265,6 +361,13 @@ Notes:
 
 - SOCKS5 authentication in Chromium/Playwright is unverified; the probe supports
   it and HTTP proxy authentication is covered by integration tests.
+- `PROXY_ERROR` conflates "proxy unavailable" with "Telegram unreachable through
+  the proxy"; Test Proxy proves only a TCP tunnel.
+- The app logs to the console only; there is no persisted redacted log for
+  post-mortem analysis of `TELEGRAM_UI_CHANGED` or proxy failures.
+- Close reason is not modelled: an intentional user close currently becomes a
+  `BROWSER_CLOSED` error, and a crash is only logged (see §6).
+- Session state and browser runtime state are not yet separate in the view.
 - Proxy changes apply on the next connection, not to an already running browser.
 - VPN/TUN is not modelled; only the configured proxy is applied.
 - The account view still starts empty after a restart (the stored account is

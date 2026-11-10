@@ -204,3 +204,30 @@
   checklist.
 - Documentation commit follows with this entry; check `git log -1`.
 - Phase 2 remains **Partially Verified**; no Phase 3 work started.
+
+## 2026-11-10 — Phase 2 live manual results
+
+- User ran the app on Windows with a real Telegram account.
+- **PASS:** real Telegram login (dashboard Connected), browser close/reopen, and
+  session persistence across browser restart (no new QR/login).
+- Successful proxy: **SOCKS5 `127.0.0.1:12334` (Hiddify)**, confirmed by the
+  persisted `config/proxy.json` at test time.
+- 10808 attempts produced `PROXY_ERROR`. Post-test checks show 10808 accepts a
+  TCP tunnel to `web.telegram.org:443`, but a fresh Chromium navigation through
+  10808 fails while 12334 returns HTTP 200. The error meant Telegram was
+  unreachable through that proxy route, not a closed port; no direct fallback
+  occurred.
+- `TELEGRAM_UI_CHANGED` occurred during an earlier attempt (from
+  `openTelegram`'s URL check or the login monitor's UNKNOWN grace period). The
+  exact branch is not recoverable because logs are console-only; the final
+  attempt reached `/k/` and Connected.
+- Login method (QR vs phone) and 2FA were not recorded; they are **not** marked
+  PASS.
+- Pending: Electron full restart, Windows full restart, proxy loss/recovery,
+  session revoke detection.
+- Evidence caveat: `config/proxy.json` holds 12334, but `accounts.json` is `[]`
+  and `profiles/` is empty now, so the test profile is not in the default data
+  directory (removed or a different `CONNECTOR_USER_DATA_DIR`). PASS results are
+  user-confirmed.
+- No code changed in this step; documentation commit follows. Phase 2 remains
+  Partially Verified; no Phase 3 work started.
