@@ -5,6 +5,7 @@ Date: 2026-11-10
 Branch: `main`
 Implementation commit: `d1107bc`
 Browser-close readiness fix: `7ed25a2`
+Duplicate-submit guard: `e3ffc6e`
 Plan: `docs/phase3/PHASE3_PLAN.md`
 
 ## 1. Scope
@@ -32,7 +33,7 @@ Phase 4 (Telegram operations) and MCP are not part of this phase.
 
 See ADR-022 and `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` §6.
 
-## 3. Automated verification (2026-11-10, `7ed25a2`)
+## 3. Automated verification (2026-11-10, `e3ffc6e`)
 
 `npm run check` — **PASS (exit 0)**:
 
@@ -115,7 +116,7 @@ Login: Last known Connected
 | Remove requires explicit confirmation | PASS |
 | Corrupt registry recovery | PASS |
 | Path traversal prevention | PASS |
-| Automated tests | PASS (`7ed25a2`) |
+| Automated tests | PASS (`e3ffc6e`) |
 | Live real-account test | PASS with two accounts; third accepted as not tested |
 | Sessions preserved for Phase 4 | Yes — do not touch |
 

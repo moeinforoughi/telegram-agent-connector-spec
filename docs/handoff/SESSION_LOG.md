@@ -268,6 +268,15 @@
 - No account/profile/session was deleted or modified. No real message was sent.
 - Documentation commit follows; check `git log -1`. Phase 4 is not started.
 
+## 2026-11-10 — Phase 3 final guard
+
+- Added a duplicate-submit guard for Add Account after a flaky E2E run
+  (`e3ffc6e`); a rapid double click can no longer create two accounts with the
+  same label.
+- `npm run check` PASS: 118 unit, 13 integration, 13 E2E.
+- Documentation commit follows; Phase 3 remains COMPLETE FOR MVP and Phase 4
+  remains planned/not started.
+
 ## 2026-11-10 — Phase 3 multi-account implementation
 
 - Phase 2 closed for MVP (`8126928`) with accepted deferred verifications.

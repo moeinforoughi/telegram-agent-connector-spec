@@ -204,6 +204,7 @@ code, and test evidence win.
 | `51d4ccc` | Phase 3 multi-account plan |
 | `d1107bc` | Multi-account manager, registry, IPC and dashboard |
 | `7ed25a2` | Normal browser close becomes Ready, not an error |
+| `e3ffc6e` | Guard against duplicate account creation |
 
 ## Key Documents
 

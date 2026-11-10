@@ -18,7 +18,7 @@ user approval to start Phase 4 Task 1 (read-only selector audit).
 Phase 3 closed. Phase 4 not authorized to implement. Phase 5 (MCP) not started.
 
 ## Last Verified Commit
-`7ed25a2` `fix(accounts): treat a normal browser close as ready` passed full
+`e3ffc6e` `fix(accounts): guard against duplicate account creation` passed full
 `npm run check` (118 unit, 13 integration, 13 E2E). The documentation commit
 containing this handoff is the latest commit on `main` (check `git log -1`).
 
