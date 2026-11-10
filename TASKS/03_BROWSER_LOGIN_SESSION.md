@@ -42,3 +42,8 @@ Priority: P0 | Depends on: TASK 00, TASK 01, TASK 02 | Commit: `feat(browser): a
 - Session بعد از Restart حفظ شود، در صورت معتبر بودن.
 - برنامه هیچ کد یا رمز ورود را نبیند یا ذخیره نکند.
 - Browser profile مستقل و قفل‌شده باشد.
+
+## Phase 2 Mapping (2026-11-10)
+- این Task با Taskهای ۲.۱ تا ۲.۶ و ۲.۸ پلن Phase 2 پیاده‌سازی می‌شود.
+- جزئیات: `docs/phase2/PHASE2_PLAN.md`.
+- وضعیت: در حال اجرا (Phase 2). تست‌های واقعی QR/2FA/Restart نیازمند کاربر هستند.

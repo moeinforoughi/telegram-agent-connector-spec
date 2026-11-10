@@ -29,3 +29,8 @@ Priority: P1 | Depends on: TASK 01 | Commit: `feat(desktop): add account managem
 
 ## Acceptance
 UI قابل استفاده و ساده باشد؛ هیچ قابلیت تزئینی یا صفحه غیرضروری اضافه نشود.
+
+## Phase 2 Mapping (2026-11-10)
+- این Task با Taskهای ۲.۴ و ۲.۵ پلن Phase 2 پیاده‌سازی می‌شود: Account Metadata، IPC و داشبورد تک‌اکانتی.
+- جزئیات: `docs/phase2/PHASE2_PLAN.md`.
+- وضعیت: در حال اجرا (Phase 2).
