@@ -14,8 +14,10 @@ let app: ElectronApplication | undefined;
 let page: Page | undefined;
 let userDataDir: string | undefined;
 
-async function launchApp(): Promise<{ app: ElectronApplication; page: Page }> {
-  userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "tac-e2e-"));
+async function launchApp(
+  existingUserDataDir?: string,
+): Promise<{ app: ElectronApplication; page: Page }> {
+  userDataDir = existingUserDataDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "tac-e2e-"));
   const launched = await electron.launch({
     args: [projectRoot],
     cwd: projectRoot,
@@ -96,6 +98,9 @@ describe("Electron shell", () => {
       "stopAccount",
       "openTelegram",
       "removeAccount",
+      "getProxySettings",
+      "saveProxySettings",
+      "testProxy",
       "onAccountStatus",
     ]);
     expect(renderer.hasIpcRenderer).toBe(false);
@@ -146,6 +151,87 @@ describe("Electron shell", () => {
       "No account connected",
     );
     expect(await launched.page.getByRole("button", { name: "Add Account" }).count()).toBe(1);
+  });
+
+  it("shows editable manual proxy settings", async () => {
+    const launched = await launchApp();
+
+    await expect
+      .poll(() => launched.page.getByLabel("Host / IP").inputValue(), { timeout: 5_000 })
+      .toBe("127.0.0.1");
+    expect(await launched.page.getByLabel("Port").inputValue()).toBe("10808");
+    expect(await launched.page.getByLabel("Protocol").inputValue()).toBe("socks5");
+    expect(await launched.page.getByLabel("Enable proxy").isChecked()).toBe(false);
+    expect(await launched.page.getByRole("button", { name: "Test Proxy" }).count()).toBe(1);
+    expect(await launched.page.getByRole("button", { name: "Save Settings" }).count()).toBe(1);
+  });
+
+  it("persists proxy settings and never writes credentials in plain text", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tac-e2e-proxy-"));
+    const first = await launchApp(dir);
+
+    const saved = await first.page.evaluate(() =>
+      (
+        globalThis as unknown as {
+          api: {
+            saveProxySettings(request: unknown): Promise<{
+              ok: boolean;
+              data?: { hasPassword: boolean; secureStorageAvailable: boolean };
+            }>;
+          };
+        }
+      ).api.saveProxySettings({
+        enabled: true,
+        protocol: "socks5",
+        host: "127.0.0.1",
+        port: 10808,
+        username: "proxy-user",
+        password: "proxy-secret",
+      }),
+    );
+
+    expect(saved.ok).toBe(true);
+    const savedView = saved.data;
+    if (!savedView) throw new Error("Missing proxy view");
+    expect(savedView).toMatchObject({ hasPassword: savedView.secureStorageAvailable });
+    expect(JSON.stringify(saved)).not.toContain("proxy-secret");
+
+    const raw = fs.readFileSync(path.join(dir, "config", "proxy.json"), "utf8");
+    expect(raw).not.toContain("proxy-secret");
+    expect(raw).not.toContain("proxy-user");
+    expect(raw).toContain("127.0.0.1");
+
+    await first.app.close();
+    app = undefined;
+
+    const second = await launchApp(dir);
+    const reloaded = await second.page.evaluate(() =>
+      (
+        globalThis as unknown as {
+          api: {
+            getProxySettings(): Promise<{
+              ok: boolean;
+              data?: {
+                enabled: boolean;
+                protocol: string;
+                host: string;
+                port: number;
+                hasPassword: boolean;
+              };
+            }>;
+          };
+        }
+      ).api.getProxySettings(),
+    );
+
+    expect(reloaded.ok).toBe(true);
+    expect(reloaded.data).toMatchObject({
+      enabled: true,
+      protocol: "socks5",
+      host: "127.0.0.1",
+      port: 10808,
+      hasPassword: savedView.secureStorageAvailable,
+    });
   });
 
   it("loads Playwright and launches a browser from the Electron main process", async () => {

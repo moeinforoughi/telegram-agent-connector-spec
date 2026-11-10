@@ -2,6 +2,7 @@ import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountView } from "../../src/shared/account";
 import type { IpcResult } from "../../src/shared/ipc";
+import type { ProxySettingsView, ProxyTestResult } from "../../src/shared/proxy";
 import type { AppInfo } from "../../src/shared/types";
 
 const ipc = vi.hoisted(() => ({
@@ -27,6 +28,18 @@ const view: AccountView = {
   status: "disconnected",
 };
 
+const proxyView: ProxySettingsView = {
+  enabled: true,
+  protocol: "socks5",
+  host: "127.0.0.1",
+  port: 10808,
+  username: "",
+  hasPassword: false,
+  secureStorageAvailable: true,
+};
+
+const proxyTest: ProxyTestResult = { status: "success", message: "Proxy tunnel established" };
+
 function makeHandlers(): IpcHandlers {
   return {
     getAppInfo: () => info,
@@ -35,6 +48,9 @@ function makeHandlers(): IpcHandlers {
     stopAccount: async () => view,
     openTelegram: async () => view,
     removeAccount: vi.fn(async () => view),
+    getProxySettings: () => proxyView,
+    saveProxySettings: vi.fn(() => proxyView),
+    testProxy: vi.fn(async () => proxyTest),
   };
 }
 
@@ -76,7 +92,7 @@ describe("registerIpcHandlers", () => {
 
     registerIpcHandlers(window, makeHandlers());
 
-    expect(ipc.removeHandler).toHaveBeenCalledTimes(6);
+    expect(ipc.removeHandler).toHaveBeenCalledTimes(9);
     expect(ipc.handle.mock.calls.map(([channel]) => channel)).toEqual([
       "app:get-info",
       "account:get",
@@ -84,6 +100,9 @@ describe("registerIpcHandlers", () => {
       "account:stop",
       "account:open",
       "account:remove",
+      "proxy:get",
+      "proxy:save",
+      "proxy:test",
     ]);
   });
 
@@ -129,5 +148,54 @@ describe("registerIpcHandlers", () => {
       data: view,
     });
     expect(handlers.removeAccount).toHaveBeenCalledWith({ deleteProfile: true });
+  });
+
+  it("validates proxy payloads before calling the services", async () => {
+    const { window, mainFrame } = makeWindow();
+    const handlers = makeHandlers();
+    registerIpcHandlers(window, handlers);
+
+    const save = handlerFor("proxy:save");
+    await expect(
+      save(makeEvent(mainFrame), {
+        enabled: true,
+        protocol: "ftp",
+        host: "127.0.0.1",
+        port: 10808,
+        username: "",
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "INVALID_ARGUMENT" } });
+    expect(handlers.saveProxySettings).not.toHaveBeenCalled();
+
+    const validSettings = {
+      enabled: true,
+      protocol: "socks5",
+      host: "127.0.0.1",
+      port: 10808,
+      username: "",
+    };
+    await expect(save(makeEvent(mainFrame), validSettings)).resolves.toEqual({
+      ok: true,
+      data: proxyView,
+    });
+    expect(handlers.saveProxySettings).toHaveBeenCalledWith(validSettings);
+
+    const test = handlerFor("proxy:test");
+    await expect(
+      test(makeEvent(mainFrame), {
+        protocol: "http",
+        host: "127.0.0.1",
+        port: 8080,
+        username: "user",
+        password: "secret",
+      }),
+    ).resolves.toEqual({ ok: true, data: proxyTest });
+    expect(handlers.testProxy).toHaveBeenCalledWith({
+      protocol: "http",
+      host: "127.0.0.1",
+      port: 8080,
+      username: "user",
+      password: "secret",
+    });
   });
 });

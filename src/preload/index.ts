@@ -9,6 +9,9 @@ const api: ConnectorApi = {
   stopAccount: () => ipcRenderer.invoke(IPC_CHANNELS.stopAccount),
   openTelegram: () => ipcRenderer.invoke(IPC_CHANNELS.openTelegram),
   removeAccount: (request) => ipcRenderer.invoke(IPC_CHANNELS.removeAccount, request),
+  getProxySettings: () => ipcRenderer.invoke(IPC_CHANNELS.getProxySettings),
+  saveProxySettings: (request) => ipcRenderer.invoke(IPC_CHANNELS.saveProxySettings, request),
+  testProxy: (request) => ipcRenderer.invoke(IPC_CHANNELS.testProxy, request),
   onAccountStatus: (listener) => {
     const handler = (_event: unknown, view: AccountView): void => listener(view);
     ipcRenderer.on(IPC_EVENTS.accountStatus, handler);

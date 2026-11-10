@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { BrowserManager } from "../../src/core/browser/browser-manager";
 import { createPlaywrightLauncher } from "../../src/core/browser/browser-factory";
 import { browserTestPaths } from "./browser-env";
+import { startForwardingSocks5Proxy } from "./socks5-proxy";
 
 type Server = { port: number; requests: string[]; close: () => Promise<void> };
 
@@ -148,6 +149,26 @@ describe("real Chromium", () => {
     await manager.close();
   });
 
+  it("navigates through a SOCKS5 proxy", async () => {
+    const target = track(await startTarget());
+    const socks = await startForwardingSocks5Proxy({ host: "127.0.0.1", port: target.port });
+    cleanups.push(socks.close);
+    const launcher = createPlaywrightLauncher();
+    const { profileDir, lockPath } = browserTestPaths();
+    const manager = new BrowserManager({ launcher });
+    const page = await manager.launch({
+      profileDir,
+      lockPath,
+      proxy: { server: `socks5://127.0.0.1:${socks.port}` },
+    });
+
+    await page.goto("http://socks-target.invalid/");
+
+    expect(await page.locator("h1").textContent()).toBe("direct target");
+    expect(manager.running).toBe(true);
+    await manager.close();
+  });
+
   it("honors the bypass list", async () => {
     const proxy = track(await startProxy());
     const target = track(await startTarget());
@@ -202,6 +223,8 @@ describe("real Chromium", () => {
     });
 
     await expect(page.goto("http://proxy-target.invalid/")).rejects.toThrow();
+    expect(manager.running).toBe(true);
+    expect(page.isClosed()).toBe(false);
 
     const proxy = track(await startProxy({ port }));
     // Use a fresh page: the failed navigation is still settling on chrome-error.

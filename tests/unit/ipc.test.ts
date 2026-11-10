@@ -11,6 +11,9 @@ describe("IPC allowlist", () => {
       IPC_CHANNELS.stopAccount,
       IPC_CHANNELS.openTelegram,
       IPC_CHANNELS.removeAccount,
+      IPC_CHANNELS.getProxySettings,
+      IPC_CHANNELS.saveProxySettings,
+      IPC_CHANNELS.testProxy,
     ]);
   });
 

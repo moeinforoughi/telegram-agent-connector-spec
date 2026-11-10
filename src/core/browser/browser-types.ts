@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from "playwright";
-import type { PlaywrightProxy } from "../network/proxy-resolver";
+import type { PlaywrightProxy } from "../network/proxy-server";
 
 export type BrowserLaunchOptions = {
   readonly profileDir: string;

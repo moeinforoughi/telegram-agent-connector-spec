@@ -3,7 +3,8 @@ import { app, type BrowserWindow } from "electron";
 import { AccountStore } from "../core/account/account-store";
 import { BrowserManager } from "../core/browser/browser-manager";
 import { createPlaywrightLauncher } from "../core/browser/browser-factory";
-import { resolveSystemProxy } from "../core/network/proxy-resolver";
+import { probeProxy } from "../core/network/proxy-probe";
+import { ProxySettingsStore } from "../core/network/proxy-settings";
 import { createPlaywrightProbe } from "../core/telegram/login-detector";
 import { APP_ID, APP_NAME } from "../shared/constants";
 import type { AppInfo } from "../shared/types";
@@ -15,6 +16,7 @@ import {
   resolveDefaultUserDataRoot,
   resolveUserDataRoot,
 } from "./paths";
+import { createElectronSecretCodec } from "./secure-storage";
 import { createMainWindow, loadRenderer } from "./window-manager";
 
 let mainWindow: BrowserWindow | undefined;
@@ -49,7 +51,7 @@ function getAppInfo(): AppInfo {
   };
 }
 
-function createAccountController(): AccountController {
+function createServices(): { controller: AccountController; proxy: ProxySettingsStore } {
   const userData = app.getPath("userData");
   const store = new AccountStore(
     path.join(userData, "config", "accounts.json"),
@@ -59,17 +61,22 @@ function createAccountController(): AccountController {
     launcher: createPlaywrightLauncher(),
     onClosed: () => accountController?.handleBrowserClosed(),
   });
+  const proxy = new ProxySettingsStore(path.join(userData, "config", "proxy.json"), {
+    secrets: createElectronSecretCodec(),
+  });
 
-  return new AccountController({
+  const controller = new AccountController({
     store,
     browser,
-    resolveProxy: () => resolveSystemProxy(),
+    getProxySettings: () => proxy.load(),
     createProbe: createPlaywrightProbe,
     onView: (view) => {
       if (mainWindow) sendAccountStatus(mainWindow, view);
     },
     log: (message) => console.error(`[account] ${message}`),
   });
+
+  return { controller, proxy };
 }
 
 process.on("uncaughtException", (error: unknown) => {
@@ -117,15 +124,18 @@ if (!hasSingleInstanceLock) {
         mainWindow = undefined;
       });
 
-      accountController = createAccountController();
-      const controller = accountController;
+      const services = createServices();
+      accountController = services.controller;
       registerIpcHandlers(mainWindow, {
         getAppInfo,
-        getAccount: () => controller.getView(),
-        startAccount: () => controller.start(),
-        stopAccount: () => controller.stop(),
-        openTelegram: () => controller.openTelegram(),
-        removeAccount: (request) => controller.remove(request.deleteProfile),
+        getAccount: () => services.controller.getView(),
+        startAccount: () => services.controller.start(),
+        stopAccount: () => services.controller.stop(),
+        openTelegram: () => services.controller.openTelegram(),
+        removeAccount: (request) => services.controller.remove(request.deleteProfile),
+        getProxySettings: () => services.proxy.getView(),
+        saveProxySettings: (request) => services.proxy.save(request),
+        testProxy: (request) => probeProxy(request),
       });
       await loadRenderer(mainWindow);
     })

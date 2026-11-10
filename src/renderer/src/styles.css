@@ -132,6 +132,50 @@ button.danger {
   color: #fecaca;
 }
 
+.proxy-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-top: 18px;
+}
+
+.proxy-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.proxy-form label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.proxy-form input,
+.proxy-form select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #0b1220;
+  color: #e2e8f0;
+  font: inherit;
+}
+
+.proxy-form input[type="checkbox"] {
+  width: auto;
+}
+
+.proxy-form input:focus,
+.proxy-form select:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}
+
 footer {
   margin-top: 32px;
   color: #64748b;
@@ -146,5 +190,9 @@ footer {
   dl div {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+
+  .proxy-form {
+    grid-template-columns: 1fr;
   }
 }

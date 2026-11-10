@@ -2,6 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import type { AccountStatus, AccountView } from "../../shared/account";
 import { APP_NAME } from "../../shared/constants";
 import type { IpcResult } from "../../shared/ipc";
+import {
+  DEFAULT_PROXY_FORM,
+  PROXY_PROTOCOLS,
+  type ProxyProtocol,
+  type ProxySettingsView,
+  type ProxyTestResult,
+  type SaveProxySettingsRequest,
+} from "../../shared/proxy";
 import type { AppInfo } from "../../shared/types";
 
 const EMPTY_VIEW: AccountView = { id: null, label: "No account", status: "disconnected" };
@@ -22,8 +30,67 @@ const LOGIN_LABELS = {
   UNKNOWN: "Checking…",
 } as const;
 
+const PROTOCOL_LABELS: Record<ProxyProtocol, string> = {
+  socks5: "SOCKS5",
+  http: "HTTP",
+};
+
+type ProxyForm = {
+  enabled: boolean;
+  protocol: ProxyProtocol;
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  hasPassword: boolean;
+  secureStorageAvailable: boolean;
+};
+
+const EMPTY_PROXY_FORM: ProxyForm = {
+  enabled: DEFAULT_PROXY_FORM.enabled,
+  protocol: DEFAULT_PROXY_FORM.protocol,
+  host: DEFAULT_PROXY_FORM.host,
+  port: String(DEFAULT_PROXY_FORM.port),
+  username: DEFAULT_PROXY_FORM.username,
+  password: "",
+  hasPassword: false,
+  secureStorageAvailable: true,
+};
+
+function formFromView(view: ProxySettingsView): ProxyForm {
+  return {
+    enabled: view.enabled,
+    protocol: view.protocol,
+    host: view.host,
+    port: String(view.port),
+    username: view.username,
+    password: "",
+    hasPassword: view.hasPassword,
+    secureStorageAvailable: view.secureStorageAvailable,
+  };
+}
+
 function browserOpen(view: AccountView): boolean {
   return ["initializing", "waiting_for_login", "authenticating", "connected"].includes(view.status);
+}
+
+function describeProxyTest(result: ProxyTestResult): string {
+  switch (result.status) {
+    case "success":
+      return result.latencyMs === undefined
+        ? "Proxy connection succeeded."
+        : `Proxy connection succeeded (${result.latencyMs} ms).`;
+    case "connection_refused":
+      return "The proxy refused the connection. Check the host and port.";
+    case "timeout":
+      return "The proxy connection timed out.";
+    case "auth_failed":
+      return "Proxy authentication failed. Check the username and password.";
+    case "invalid_config":
+      return `Invalid proxy configuration: ${result.message}`;
+    default:
+      return "The proxy is unavailable.";
+  }
 }
 
 export function App() {
@@ -31,6 +98,11 @@ export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [proxy, setProxy] = useState<ProxyForm>(EMPTY_PROXY_FORM);
+  const [proxyBusy, setProxyBusy] = useState<"save" | "test" | null>(null);
+  const [proxyMessage, setProxyMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!window.api) {
@@ -46,6 +118,11 @@ export function App() {
       if (!active) return;
       if (result.ok) setView(result.data);
       else setFailure(result.error.message);
+    });
+    window.api.getProxySettings().then((result) => {
+      if (!active) return;
+      if (result.ok) setProxy(formFromView(result.data));
+      else setProxyMessage({ kind: "error", text: result.error.message });
     });
     const unsubscribe = window.api.onAccountStatus((next) => {
       if (active) setView(next);
@@ -79,6 +156,74 @@ export function App() {
       void run(() => window.api.removeAccount({ deleteProfile: true }));
     }
   }, [run]);
+
+  const updateProxy = useCallback((patch: Partial<ProxyForm>) => {
+    setProxy((current) => ({ ...current, ...patch }));
+  }, []);
+
+  const buildProxyRequest = useCallback((): SaveProxySettingsRequest | null => {
+    const port = Number(proxy.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      setProxyMessage({ kind: "error", text: "Port must be an integer between 1 and 65535." });
+      return null;
+    }
+    return {
+      enabled: proxy.enabled,
+      protocol: proxy.protocol,
+      host: proxy.host,
+      port,
+      username: proxy.username,
+      ...(proxy.password ? { password: proxy.password } : {}),
+    };
+  }, [proxy]);
+
+  const saveProxy = useCallback(async () => {
+    const request = buildProxyRequest();
+    if (!request) return;
+    setProxyBusy("save");
+    setProxyMessage(null);
+    try {
+      const result = await window.api.saveProxySettings(request);
+      if (result.ok) {
+        setProxy(formFromView(result.data));
+        setProxyMessage({ kind: "ok", text: "Proxy settings saved." });
+      } else {
+        setProxyMessage({ kind: "error", text: result.error.message });
+      }
+    } catch {
+      setProxyMessage({ kind: "error", text: "Could not save proxy settings." });
+    } finally {
+      setProxyBusy(null);
+    }
+  }, [buildProxyRequest]);
+
+  const testProxy = useCallback(async () => {
+    const request = buildProxyRequest();
+    if (!request) return;
+    setProxyBusy("test");
+    setProxyMessage(null);
+    try {
+      const result = await window.api.testProxy({
+        protocol: request.protocol,
+        host: request.host,
+        port: request.port,
+        username: request.username,
+        ...(request.password ? { password: request.password } : {}),
+      });
+      if (result.ok) {
+        setProxyMessage({
+          kind: result.data.status === "success" ? "ok" : "error",
+          text: describeProxyTest(result.data),
+        });
+      } else {
+        setProxyMessage({ kind: "error", text: result.error.message });
+      }
+    } catch {
+      setProxyMessage({ kind: "error", text: "Proxy test failed." });
+    } finally {
+      setProxyBusy(null);
+    }
+  }, [buildProxyRequest]);
 
   const errorMessage = failure ?? view.error?.message;
   const hasAccount = view.id !== null;
@@ -181,6 +326,108 @@ export function App() {
             </button>
           ) : null}
         </div>
+      </section>
+
+      <section className="card" aria-labelledby="proxy-heading">
+        <h2 id="proxy-heading">Network / Proxy</h2>
+        <p className="hint">
+          The connector uses only this proxy. There is no automatic fallback: if the proxy is down,
+          Telegram will not load and the settings stay selected.
+        </p>
+
+        <div className="proxy-form">
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={proxy.enabled}
+              disabled={proxyBusy !== null}
+              onChange={(event) => updateProxy({ enabled: event.target.checked })}
+            />
+            Enable proxy
+          </label>
+
+          <label>
+            Protocol
+            <select
+              value={proxy.protocol}
+              disabled={proxyBusy !== null}
+              onChange={(event) => updateProxy({ protocol: event.target.value as ProxyProtocol })}
+            >
+              {PROXY_PROTOCOLS.map((protocol) => (
+                <option key={protocol} value={protocol}>
+                  {PROTOCOL_LABELS[protocol]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Host / IP
+            <input
+              type="text"
+              value={proxy.host}
+              disabled={proxyBusy !== null}
+              spellCheck={false}
+              onChange={(event) => updateProxy({ host: event.target.value })}
+            />
+          </label>
+
+          <label>
+            Port
+            <input
+              type="number"
+              min={1}
+              max={65535}
+              value={proxy.port}
+              disabled={proxyBusy !== null}
+              onChange={(event) => updateProxy({ port: event.target.value })}
+            />
+          </label>
+
+          <label>
+            Username (optional)
+            <input
+              type="text"
+              value={proxy.username}
+              disabled={proxyBusy !== null}
+              autoComplete="off"
+              onChange={(event) => updateProxy({ username: event.target.value })}
+            />
+          </label>
+
+          <label>
+            Password (optional)
+            <input
+              type="password"
+              value={proxy.password}
+              disabled={proxyBusy !== null}
+              autoComplete="off"
+              placeholder={proxy.hasPassword ? "Saved — leave blank to keep" : "Not set"}
+              onChange={(event) => updateProxy({ password: event.target.value })}
+            />
+          </label>
+        </div>
+
+        {!proxy.secureStorageAvailable ? (
+          <p className="error" role="alert">
+            OS secure storage is unavailable. Proxy credentials will not be saved.
+          </p>
+        ) : null}
+
+        <div className="actions">
+          <button type="button" disabled={proxyBusy !== null} onClick={() => void testProxy()}>
+            {proxyBusy === "test" ? "Testing…" : "Test Proxy"}
+          </button>
+          <button type="button" disabled={proxyBusy !== null} onClick={() => void saveProxy()}>
+            {proxyBusy === "save" ? "Saving…" : "Save Settings"}
+          </button>
+        </div>
+
+        {proxyMessage ? (
+          <p className={proxyMessage.kind === "ok" ? "hint" : "error"} role="status">
+            {proxyMessage.text}
+          </p>
+        ) : null}
       </section>
 
       <footer>

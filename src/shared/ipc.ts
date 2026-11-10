@@ -1,5 +1,11 @@
 import type { AccountView } from "./account";
 import type { SerializedError } from "./errors";
+import type {
+  ProxySettingsView,
+  ProxyTestRequest,
+  ProxyTestResult,
+  SaveProxySettingsRequest,
+} from "./proxy";
 import type { AppInfo } from "./types";
 
 export const IPC_CHANNELS = {
@@ -9,6 +15,9 @@ export const IPC_CHANNELS = {
   stopAccount: "account:stop",
   openTelegram: "account:open",
   removeAccount: "account:remove",
+  getProxySettings: "proxy:get",
+  saveProxySettings: "proxy:save",
+  testProxy: "proxy:test",
 } as const;
 
 export const IPC_EVENTS = {
@@ -22,6 +31,9 @@ export const IPC_ALLOWLIST = [
   IPC_CHANNELS.stopAccount,
   IPC_CHANNELS.openTelegram,
   IPC_CHANNELS.removeAccount,
+  IPC_CHANNELS.getProxySettings,
+  IPC_CHANNELS.saveProxySettings,
+  IPC_CHANNELS.testProxy,
 ] as const;
 
 export type IpcChannel = (typeof IPC_ALLOWLIST)[number];
@@ -40,5 +52,8 @@ export type ConnectorApi = {
   stopAccount(): Promise<IpcResult<AccountView>>;
   openTelegram(): Promise<IpcResult<AccountView>>;
   removeAccount(request: RemoveAccountRequest): Promise<IpcResult<AccountView>>;
+  getProxySettings(): Promise<IpcResult<ProxySettingsView>>;
+  saveProxySettings(request: SaveProxySettingsRequest): Promise<IpcResult<ProxySettingsView>>;
+  testProxy(request: ProxyTestRequest): Promise<IpcResult<ProxyTestResult>>;
   onAccountStatus(listener: (view: AccountView) => void): () => void;
 };

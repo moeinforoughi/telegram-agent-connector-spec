@@ -3,8 +3,11 @@ import path from "node:path";
 import type { Page } from "playwright";
 import type { AccountStore, StoredAccount } from "../core/account/account-store";
 import type { BrowserLaunchOptions } from "../core/browser/browser-types";
-import type { ProxyResolution } from "../core/network/proxy-resolver";
-import { toPlaywrightProxy } from "../core/network/proxy-resolver";
+import {
+  proxyConfigurationKey,
+  toPlaywrightProxyConfig,
+  type ProxySettings,
+} from "../core/network/proxy-settings";
 import { detectLoginState, type PageProbe } from "../core/telegram/login-detector";
 import { waitForConnected, type LoginMonitorOptions } from "../core/telegram/login-monitor";
 import { openTelegram } from "../core/telegram/navigation";
@@ -22,7 +25,8 @@ export type BrowserDriver = {
 export type AccountControllerDeps = {
   readonly store: AccountStore;
   readonly browser: BrowserDriver;
-  readonly resolveProxy: () => ProxyResolution;
+  /** Manual proxy settings; this is the only proxy source for the browser. */
+  readonly getProxySettings: () => ProxySettings;
   readonly createProbe: (page: Page) => PageProbe;
   readonly monitor?: (options: LoginMonitorOptions) => Promise<LoginDetection>;
   readonly onView: (view: AccountView) => void;
@@ -36,11 +40,14 @@ const EMPTY_VIEW: AccountView = {
   status: "disconnected",
 };
 
+const ACTIVE_STATUSES = ["waiting_for_login", "authenticating", "connected"] as const;
+
 export class AccountController {
   private readonly deps: AccountControllerDeps;
   private view: AccountView = EMPTY_VIEW;
   private account: StoredAccount | undefined;
   private page: Page | undefined;
+  private proxyKey: string | undefined;
   private generation = 0;
   private stopping = false;
   private starting: Promise<AccountView> | undefined;
@@ -67,7 +74,7 @@ export class AccountController {
 
   async openTelegram(): Promise<AccountView> {
     if (this.deps.browser.running && this.page) {
-      await this.page.bringToFront();
+      await this.page.bringToFront().catch(() => undefined);
       return this.getView();
     }
     return this.start();
@@ -81,6 +88,7 @@ export class AccountController {
     } finally {
       this.stopping = false;
       this.page = undefined;
+      this.proxyKey = undefined;
       this.setView({
         id: this.view.id,
         label: this.view.label,
@@ -111,13 +119,18 @@ export class AccountController {
     if (this.stopping) return;
     this.generation += 1;
     this.page = undefined;
+    this.proxyKey = undefined;
     this.fail(new AppError("BROWSER_CLOSED", "The browser window was closed", { retryable: true }));
   }
 
   private async doStart(): Promise<AccountView> {
-    if (this.deps.browser.running) {
-      await this.page?.bringToFront();
-      return this.getView();
+    // Already connected or waiting: focus the existing window instead of
+    // starting a second monitor.
+    if (this.deps.browser.running && this.page) {
+      if (ACTIVE_STATUSES.includes(this.view.status as (typeof ACTIVE_STATUSES)[number])) {
+        await this.page.bringToFront().catch(() => undefined);
+        return this.getView();
+      }
     }
 
     const generation = (this.generation += 1);
@@ -134,40 +147,81 @@ export class AccountController {
         ...(account.lastConnectedAt ? { lastConnectedAt: account.lastConnectedAt } : {}),
       });
 
-      const proxy = this.deps.resolveProxy();
-      const playwrightProxy = toPlaywrightProxy(proxy);
-      this.log(`starting browser (${proxy.source}/${proxy.mode})`);
+      const settings = this.deps.getProxySettings();
+      const proxyKey = proxyConfigurationKey(settings);
+      const proxy = toPlaywrightProxyConfig(settings);
 
-      const page = await this.deps.browser.launch({
-        profileDir: account.profileDir,
-        lockPath: path.join(path.dirname(account.profileDir), "profile.lock"),
-        ...(playwrightProxy ? { proxy: playwrightProxy } : {}),
-      });
-      if (generation !== this.generation) return this.getView();
-      this.page = page;
-
-      try {
-        await openTelegram(page);
-      } catch (error) {
-        if (isAppError(error) && error.code === "NETWORK_ERROR" && proxy.mode === "proxy") {
-          throw new AppError(
-            "PROXY_ERROR",
-            "Telegram Web could not be reached through the configured proxy",
-            { retryable: true, cause: error },
-          );
-        }
-        throw error;
+      if (this.deps.browser.running && (!this.page || this.page.isClosed())) {
+        await this.deps.browser.close().catch(() => undefined);
+        this.page = undefined;
+        this.proxyKey = undefined;
       }
 
-      if (generation !== this.generation) return this.getView();
-      this.setView({ ...this.view, status: "waiting_for_login", loginState: "LOGIN_REQUIRED" });
-      void this.runMonitor(generation);
-      return this.getView();
+      if (this.deps.browser.running && proxyKey !== this.proxyKey) {
+        // The user changed the proxy; relaunch so the new settings apply.
+        await this.deps.browser.close().catch(() => undefined);
+        this.page = undefined;
+        this.proxyKey = undefined;
+      }
+
+      if (!this.deps.browser.running) {
+        this.log(
+          `starting browser (${settings.enabled ? `${settings.protocol} proxy` : "direct"})`,
+        );
+        const page = await this.deps.browser.launch({
+          profileDir: account.profileDir,
+          lockPath: path.join(path.dirname(account.profileDir), "profile.lock"),
+          ...(proxy ? { proxy } : {}),
+        });
+        if (generation !== this.generation) {
+          await this.deps.browser.close().catch(() => undefined);
+          return this.getView();
+        }
+        this.page = page;
+        this.proxyKey = proxyKey;
+      } else {
+        this.log(`reusing browser (${settings.enabled ? `${settings.protocol} proxy` : "direct"})`);
+      }
+
+      return await this.connect(generation, settings.enabled);
     } catch (error) {
-      await this.deps.browser.close().catch(() => undefined);
+      // A successfully launched browser is never closed because of a network or
+      // navigation error: the profile and session stay intact for Retry.
+      if (!this.deps.browser.running) {
+        await this.deps.browser.close().catch(() => undefined);
+        this.page = undefined;
+        this.proxyKey = undefined;
+      }
       this.fail(error);
       return this.getView();
     }
+  }
+
+  private async connect(generation: number, proxyEnabled: boolean): Promise<AccountView> {
+    const page = this.page;
+    if (!page) {
+      throw new AppError("BROWSER_LAUNCH_FAILED", "Browser page is unavailable", {
+        retryable: true,
+      });
+    }
+
+    try {
+      await openTelegram(page);
+    } catch (error) {
+      if (isAppError(error) && error.code === "NETWORK_ERROR" && proxyEnabled) {
+        throw new AppError(
+          "PROXY_ERROR",
+          "Telegram Web could not be reached through the configured proxy",
+          { retryable: true, cause: error },
+        );
+      }
+      throw error;
+    }
+
+    if (generation !== this.generation) return this.getView();
+    this.setView({ ...this.view, status: "waiting_for_login", loginState: "LOGIN_REQUIRED" });
+    void this.runMonitor(generation);
+    return this.getView();
   }
 
   private async runMonitor(generation: number): Promise<void> {

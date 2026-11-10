@@ -7,7 +7,7 @@ import { AccountController } from "../../src/main/account-controller";
 import { AccountStore } from "../../src/core/account/account-store";
 import type { AccountView } from "../../src/shared/account";
 import { AppError } from "../../src/shared/errors";
-import type { ProxyResolution } from "../../src/core/network/proxy-resolver";
+import type { ProxySettings } from "../../src/core/network/proxy-settings";
 import type { LoginDetection } from "../../src/core/telegram/telegram-types";
 
 let root: string;
@@ -56,13 +56,15 @@ function browser(p = page()) {
   };
 }
 
-const direct: ProxyResolution = { source: "direct", mode: "direct", requiresAuthentication: false };
-const proxied: ProxyResolution = {
-  source: "manual",
-  mode: "proxy",
-  server: "http://127.0.0.1:8080",
-  requiresAuthentication: false,
+const direct: ProxySettings = {
+  enabled: false,
+  protocol: "socks5",
+  host: "127.0.0.1",
+  port: 10808,
+  username: "",
+  password: "",
 };
+const proxied: ProxySettings = { ...direct, enabled: true };
 
 function connected(): LoginDetection {
   return { state: "CONNECTED", evidence: ["visible:#column-left"] };
@@ -71,7 +73,8 @@ function connected(): LoginDetection {
 function controller(
   browserDriver: ReturnType<typeof browser>,
   options: {
-    proxy?: ProxyResolution;
+    proxy?: ProxySettings;
+    getProxySettings?: () => ProxySettings;
     monitor?: (options: unknown) => Promise<LoginDetection>;
     views?: AccountView[];
   } = {},
@@ -79,7 +82,7 @@ function controller(
   return new AccountController({
     store,
     browser: browserDriver,
-    resolveProxy: () => options.proxy ?? direct,
+    getProxySettings: options.getProxySettings ?? (() => options.proxy ?? direct),
     createProbe: () => ({
       url: () => "https://web.telegram.org/k/",
       isVisible: async () => false,
@@ -122,16 +125,16 @@ describe("AccountController", () => {
     await vi.waitFor(() => expect(subject.getView().status).toBe("connected"));
 
     expect(driver.launch).toHaveBeenCalledWith(
-      expect.objectContaining({ proxy: { server: "http://127.0.0.1:8080" } }),
+      expect.objectContaining({ proxy: { server: "socks5://127.0.0.1:10808" } }),
     );
   });
 
-  it("maps a proxy resolution failure to PROXY_ERROR", async () => {
+  it("maps an invalid proxy configuration to PROXY_ERROR without launching", async () => {
     const driver = browser();
     const subject = new AccountController({
       store,
       browser: driver,
-      resolveProxy: () => {
+      getProxySettings: () => {
         throw new AppError("PROXY_ERROR", "Invalid proxy server");
       },
       createProbe: () => ({ url: () => "", isVisible: async () => false, count: async () => 0 }),
@@ -157,6 +160,53 @@ describe("AccountController", () => {
     await subject.start();
 
     expect(subject.getView().error).toMatchObject({ code: "PROXY_ERROR" });
+  });
+
+  it("keeps the browser open after a navigation error and retries in place", async () => {
+    const driver = browser();
+    const goto = vi.fn(async () => {
+      throw new Error("net::ERR_PROXY_CONNECTION_FAILED");
+    });
+    driver.p.goto = goto;
+    const subject = controller(driver, { proxy: proxied });
+
+    await subject.start();
+
+    expect(subject.getView().error?.code).toBe("PROXY_ERROR");
+    expect(driver.running).toBe(true);
+    expect(driver.launch).toHaveBeenCalledTimes(1);
+    expect(driver.close).not.toHaveBeenCalled();
+
+    goto.mockImplementation(async () => undefined as never);
+    await subject.start();
+    await vi.waitFor(() => expect(subject.getView().status).toBe("connected"));
+
+    expect(driver.launch).toHaveBeenCalledTimes(1);
+    expect(driver.close).not.toHaveBeenCalled();
+  });
+
+  it("relaunches with the new proxy after the settings change", async () => {
+    const driver = browser();
+    const goto = vi.fn(async () => {
+      throw new Error("net::ERR_PROXY_CONNECTION_FAILED");
+    });
+    driver.p.goto = goto;
+    let settings: ProxySettings = { ...proxied, protocol: "http", port: 8080 };
+    const subject = controller(driver, { getProxySettings: () => settings });
+
+    await subject.start();
+    expect(subject.getView().status).toBe("error");
+
+    settings = { ...proxied, protocol: "socks5", port: 10809 };
+    goto.mockImplementation(async () => undefined as never);
+    await subject.start();
+    await vi.waitFor(() => expect(subject.getView().status).toBe("connected"));
+
+    expect(driver.close).toHaveBeenCalledTimes(1);
+    expect(driver.launch).toHaveBeenCalledTimes(2);
+    expect(driver.launch).toHaveBeenLastCalledWith(
+      expect.objectContaining({ proxy: { server: "socks5://127.0.0.1:10809" } }),
+    );
   });
 
   it("does not launch twice while running", async () => {
