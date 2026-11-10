@@ -29,9 +29,9 @@ export type ProxyInput = {
 };
 
 export type SecretCodec = {
-  available(): boolean;
-  encrypt(plainText: string): string;
-  decrypt(payload: string): string;
+  isAvailable(): Promise<boolean>;
+  encrypt(plainText: string): Promise<string>;
+  decrypt(payload: string): Promise<string>;
 };
 
 export type ProxyStoreDeps = {
@@ -176,9 +176,12 @@ function isProxyFile(value: unknown): value is ProxyFile {
   );
 }
 
-function parseCredentials(payload: string, codec: SecretCodec): StoredCredentials | undefined {
+async function parseCredentials(
+  payload: string,
+  codec: SecretCodec,
+): Promise<StoredCredentials | undefined> {
   try {
-    const parsed: unknown = JSON.parse(codec.decrypt(payload));
+    const parsed: unknown = JSON.parse(await codec.decrypt(payload));
     if (typeof parsed !== "object" || parsed === null) return undefined;
     const credentials = parsed as Partial<StoredCredentials>;
     if (typeof credentials.username !== "string" || typeof credentials.password !== "string") {
@@ -204,7 +207,7 @@ export class ProxySettingsStore {
     this.secrets = deps.secrets;
   }
 
-  load(): ProxySettings {
+  async load(): Promise<ProxySettings> {
     let raw: string;
     try {
       raw = fs.readFileSync(this.filePath, "utf8");
@@ -235,8 +238,8 @@ export class ProxySettingsStore {
       return DEFAULT_PROXY_SETTINGS;
     }
 
-    if (!parsed.credentials || !this.secrets.available()) return settings;
-    const credentials = parseCredentials(parsed.credentials, this.secrets);
+    if (!parsed.credentials || !(await this.secrets.isAvailable())) return settings;
+    const credentials = await parseCredentials(parsed.credentials, this.secrets);
     if (!credentials) return settings;
 
     try {
@@ -246,11 +249,11 @@ export class ProxySettingsStore {
     }
   }
 
-  getView(): ProxySettingsView {
-    return toView(this.load(), this.secrets.available());
+  async getView(): Promise<ProxySettingsView> {
+    return toView(await this.load(), await this.secrets.isAvailable());
   }
 
-  save(input: SaveProxySettingsRequest): ProxySettingsView {
+  async save(input: SaveProxySettingsRequest): Promise<ProxySettingsView> {
     const base = normalizeProxySettings({
       enabled: input.enabled,
       protocol: input.protocol,
@@ -259,13 +262,13 @@ export class ProxySettingsStore {
       username: input.username,
       password: input.password ?? "",
     });
-    const existing = this.load();
+    const existing = await this.load();
     const username = base.username;
     let password = input.password === undefined ? existing.password : base.password;
     if (!username) password = "";
 
     const settings = normalizeProxySettings({ ...base, username, password });
-    const credentials = this.encryptCredentials(settings);
+    const credentials = await this.encryptCredentials(settings);
     const file: ProxyFile = {
       version: 1,
       enabled: settings.enabled,
@@ -277,12 +280,12 @@ export class ProxySettingsStore {
     this.write(file);
 
     const saved = credentials ? settings : { ...settings, username: "", password: "" };
-    return toView(saved, this.secrets.available());
+    return toView(saved, await this.secrets.isAvailable());
   }
 
-  private encryptCredentials(settings: ProxySettings): string | undefined {
+  private async encryptCredentials(settings: ProxySettings): Promise<string | undefined> {
     if (!settings.username) return undefined;
-    if (!this.secrets.available()) return undefined;
+    if (!(await this.secrets.isAvailable())) return undefined;
     return this.secrets.encrypt(
       JSON.stringify({ username: settings.username, password: settings.password }),
     );

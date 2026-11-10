@@ -50,7 +50,10 @@ export class BrowserManager {
       context = launched;
       const page = launched.pages()[0] ?? (await launched.newPage());
       this.session = { context: launched, page, lockPath: options.lockPath };
-      launched.on("close", () => this.clearSession(launched, options.lockPath));
+      launched.on("close", () => {
+        this.log("context closed");
+        this.clearSession(launched, options.lockPath);
+      });
       page.on("crash", () => this.log("page crashed"));
       return page;
     } catch (error) {

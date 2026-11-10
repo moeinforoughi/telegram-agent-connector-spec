@@ -33,8 +33,8 @@ export type IpcHandlers = {
   readonly stopAccount: () => Promise<AccountView>;
   readonly openTelegram: () => Promise<AccountView>;
   readonly removeAccount: (request: RemoveAccountRequest) => Promise<AccountView>;
-  readonly getProxySettings: () => ProxySettingsView;
-  readonly saveProxySettings: (request: SaveProxySettingsRequest) => ProxySettingsView;
+  readonly getProxySettings: () => Promise<ProxySettingsView>;
+  readonly saveProxySettings: (request: SaveProxySettingsRequest) => Promise<ProxySettingsView>;
   readonly testProxy: (request: ProxyTestRequest) => Promise<ProxyTestResult>;
 };
 

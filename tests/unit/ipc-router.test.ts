@@ -48,8 +48,8 @@ function makeHandlers(): IpcHandlers {
     stopAccount: async () => view,
     openTelegram: async () => view,
     removeAccount: vi.fn(async () => view),
-    getProxySettings: () => proxyView,
-    saveProxySettings: vi.fn(() => proxyView),
+    getProxySettings: async () => proxyView,
+    saveProxySettings: vi.fn(async () => proxyView),
     testProxy: vi.fn(async () => proxyTest),
   };
 }

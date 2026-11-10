@@ -74,15 +74,16 @@ function controller(
   browserDriver: ReturnType<typeof browser>,
   options: {
     proxy?: ProxySettings;
-    getProxySettings?: () => ProxySettings;
+    getProxySettings?: () => Promise<ProxySettings>;
     monitor?: (options: unknown) => Promise<LoginDetection>;
     views?: AccountView[];
+    log?: (message: string) => void;
   } = {},
 ): AccountController {
   return new AccountController({
     store,
     browser: browserDriver,
-    getProxySettings: options.getProxySettings ?? (() => options.proxy ?? direct),
+    getProxySettings: options.getProxySettings ?? (async () => options.proxy ?? direct),
     createProbe: () => ({
       url: () => "https://web.telegram.org/k/",
       isVisible: async () => false,
@@ -92,7 +93,7 @@ function controller(
       options.monitor ? options.monitor(monitorOptions) : connected(),
     onView: (view) => options.views?.push(view),
     now: () => new Date("2026-11-10T10:00:00.000Z"),
-    log: () => undefined,
+    log: options.log ?? (() => undefined),
   });
 }
 
@@ -134,7 +135,7 @@ describe("AccountController", () => {
     const subject = new AccountController({
       store,
       browser: driver,
-      getProxySettings: () => {
+      getProxySettings: async () => {
         throw new AppError("PROXY_ERROR", "Invalid proxy server");
       },
       createProbe: () => ({ url: () => "", isVisible: async () => false, count: async () => 0 }),
@@ -192,7 +193,7 @@ describe("AccountController", () => {
     });
     driver.p.goto = goto;
     let settings: ProxySettings = { ...proxied, protocol: "http", port: 8080 };
-    const subject = controller(driver, { getProxySettings: () => settings });
+    const subject = controller(driver, { getProxySettings: async () => settings });
 
     await subject.start();
     expect(subject.getView().status).toBe("error");
@@ -207,6 +208,50 @@ describe("AccountController", () => {
     expect(driver.launch).toHaveBeenLastCalledWith(
       expect.objectContaining({ proxy: { server: "socks5://127.0.0.1:10809" } }),
     );
+  });
+
+  it("logs proxy routing metadata without credentials", async () => {
+    const driver = browser();
+    const logs: string[] = [];
+    const settings: ProxySettings = {
+      ...proxied,
+      username: "proxy-user",
+      password: "proxy-secret",
+    };
+    const subject = controller(driver, { proxy: settings, log: (message) => logs.push(message) });
+
+    await subject.start();
+
+    expect(logs).toEqual(
+      expect.arrayContaining([
+        "starting browser",
+        "proxy.enabled=true",
+        "proxy.protocol=socks5",
+        "proxy.host=127.0.0.1",
+        "proxy.port=10808",
+        "mode=proxy",
+      ]),
+    );
+    expect(logs.join("\n")).not.toContain("proxy-secret");
+    expect(logs.join("\n")).not.toContain("proxy-user");
+  });
+
+  it("fails closed when the proxy is enabled but unusable", async () => {
+    const driver = browser();
+    const invalid: ProxySettings = {
+      enabled: true,
+      protocol: "socks5",
+      host: "",
+      port: 0,
+      username: "",
+      password: "",
+    };
+    const subject = controller(driver, { proxy: invalid });
+
+    await subject.start();
+
+    expect(subject.getView().error?.code).toBe("PROXY_ERROR");
+    expect(driver.launch).not.toHaveBeenCalled();
   });
 
   it("does not launch twice while running", async () => {

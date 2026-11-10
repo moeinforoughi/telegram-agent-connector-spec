@@ -23,9 +23,9 @@ afterEach(() => {
 
 function fakeCodec(available = true): SecretCodec {
   return {
-    available: () => available,
-    encrypt: (plainText) => `enc:${Buffer.from(plainText, "utf8").toString("base64")}`,
-    decrypt: (payload) => {
+    isAvailable: async () => available,
+    encrypt: async (plainText) => `enc:${Buffer.from(plainText, "utf8").toString("base64")}`,
+    decrypt: async (payload) => {
       if (!payload.startsWith("enc:")) throw new Error("bad payload");
       return Buffer.from(payload.slice(4), "base64").toString("utf8");
     },
@@ -50,10 +50,10 @@ const base = {
 };
 
 describe("ProxySettingsStore", () => {
-  it("returns editable defaults when no file exists", () => {
+  it("returns editable defaults when no file exists", async () => {
     const store = makeStore();
-    expect(store.load()).toEqual(DEFAULT_PROXY_SETTINGS);
-    expect(store.getView()).toMatchObject({
+    expect(await store.load()).toEqual(DEFAULT_PROXY_SETTINGS);
+    expect(await store.getView()).toMatchObject({
       enabled: false,
       protocol: "socks5",
       host: "127.0.0.1",
@@ -62,9 +62,9 @@ describe("ProxySettingsStore", () => {
     });
   });
 
-  it("persists non-secret fields and encrypts credentials", () => {
+  it("persists non-secret fields and encrypts credentials", async () => {
     const store = makeStore();
-    const view = store.save(base);
+    const view = await store.save(base);
 
     expect(view).toMatchObject({
       enabled: true,
@@ -81,7 +81,7 @@ describe("ProxySettingsStore", () => {
     expect(raw).not.toContain("super-secret");
     expect(raw).not.toContain('"username"');
 
-    expect(store.load()).toMatchObject({
+    expect(await store.load()).toMatchObject({
       enabled: true,
       protocol: "socks5",
       host: "127.0.0.1",
@@ -91,9 +91,9 @@ describe("ProxySettingsStore", () => {
     });
   });
 
-  it("keeps the stored password when the save omits it", () => {
+  it("keeps the stored password when the save omits it", async () => {
     const store = makeStore();
-    store.save(base);
+    await store.save(base);
 
     const withoutPassword = {
       enabled: base.enabled,
@@ -102,15 +102,15 @@ describe("ProxySettingsStore", () => {
       port: base.port,
       username: base.username,
     };
-    store.save(withoutPassword);
+    await store.save(withoutPassword);
 
-    expect(store.load().password).toBe("super-secret");
-    expect(store.getView().hasPassword).toBe(true);
+    expect((await store.load()).password).toBe("super-secret");
+    expect((await store.getView()).hasPassword).toBe(true);
   });
 
-  it("clears credentials when the username is emptied", () => {
+  it("clears credentials when the username is emptied", async () => {
     const store = makeStore();
-    store.save(base);
+    await store.save(base);
     const withoutPassword = {
       enabled: base.enabled,
       protocol: base.protocol,
@@ -118,46 +118,46 @@ describe("ProxySettingsStore", () => {
       port: base.port,
       username: "",
     };
-    store.save(withoutPassword);
+    await store.save(withoutPassword);
 
-    expect(store.load()).toMatchObject({ username: "", password: "" });
-    expect(store.getView().hasPassword).toBe(false);
+    expect(await store.load()).toMatchObject({ username: "", password: "" });
+    expect((await store.getView()).hasPassword).toBe(false);
     expect(fs.readFileSync(settingsFile(), "utf8")).not.toContain("enc:");
   });
 
-  it("never persists credentials without OS encryption", () => {
+  it("never persists credentials without OS encryption", async () => {
     const store = makeStore(fakeCodec(false));
-    const view = store.save(base);
+    const view = await store.save(base);
 
     expect(view).toMatchObject({ username: "", hasPassword: false, secureStorageAvailable: false });
     const raw = fs.readFileSync(settingsFile(), "utf8");
     expect(raw).not.toContain("enc:");
     expect(raw).not.toContain("super-secret");
-    expect(store.load()).toMatchObject({ username: "", password: "" });
+    expect(await store.load()).toMatchObject({ username: "", password: "" });
   });
 
-  it("falls back to defaults for a corrupt or invalid file", () => {
+  it("falls back to defaults for a corrupt or invalid file", async () => {
     fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
     fs.writeFileSync(settingsFile(), "{not json");
-    expect(makeStore().load()).toEqual(DEFAULT_PROXY_SETTINGS);
+    expect(await makeStore().load()).toEqual(DEFAULT_PROXY_SETTINGS);
 
     fs.writeFileSync(
       settingsFile(),
       JSON.stringify({ version: 1, enabled: true, protocol: "ftp" }),
     );
-    expect(makeStore().load()).toEqual(DEFAULT_PROXY_SETTINGS);
+    expect(await makeStore().load()).toEqual(DEFAULT_PROXY_SETTINGS);
   });
 
-  it("rejects invalid configurations", () => {
+  it("rejects invalid configurations", async () => {
     const store = makeStore();
-    expect(() => store.save({ ...base, port: 0 })).toThrow(/Invalid proxy configuration/);
-    expect(() => store.save({ ...base, host: "http://127.0.0.1" })).toThrow(
+    await expect(store.save({ ...base, port: 0 })).rejects.toThrow(/Invalid proxy configuration/);
+    await expect(store.save({ ...base, host: "http://127.0.0.1" })).rejects.toThrow(
       /Invalid proxy configuration/,
     );
-    expect(() => store.save({ ...base, protocol: "ftp" as never })).toThrow(
+    await expect(store.save({ ...base, protocol: "ftp" as never })).rejects.toThrow(
       /Invalid proxy configuration/,
     );
-    expect(() => store.save({ ...base, username: "", password: "x" })).toThrow(
+    await expect(store.save({ ...base, username: "", password: "x" })).rejects.toThrow(
       /username is required/,
     );
   });

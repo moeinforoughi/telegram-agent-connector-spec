@@ -26,7 +26,7 @@ export type AccountControllerDeps = {
   readonly store: AccountStore;
   readonly browser: BrowserDriver;
   /** Manual proxy settings; this is the only proxy source for the browser. */
-  readonly getProxySettings: () => ProxySettings;
+  readonly getProxySettings: () => Promise<ProxySettings>;
   readonly createProbe: (page: Page) => PageProbe;
   readonly monitor?: (options: LoginMonitorOptions) => Promise<LoginDetection>;
   readonly onView: (view: AccountView) => void;
@@ -147,9 +147,13 @@ export class AccountController {
         ...(account.lastConnectedAt ? { lastConnectedAt: account.lastConnectedAt } : {}),
       });
 
-      const settings = this.deps.getProxySettings();
+      const settings = await this.deps.getProxySettings();
       const proxyKey = proxyConfigurationKey(settings);
       const proxy = toPlaywrightProxyConfig(settings);
+      if (settings.enabled && !proxy) {
+        // Fail closed: never launch Chromium directly while the proxy is enabled.
+        throw new AppError("PROXY_ERROR", "Proxy is enabled but its configuration is invalid");
+      }
 
       if (this.deps.browser.running && (!this.page || this.page.isClosed())) {
         await this.deps.browser.close().catch(() => undefined);
@@ -165,9 +169,8 @@ export class AccountController {
       }
 
       if (!this.deps.browser.running) {
-        this.log(
-          `starting browser (${settings.enabled ? `${settings.protocol} proxy` : "direct"})`,
-        );
+        this.log("starting browser");
+        this.logProxySettings(settings);
         const page = await this.deps.browser.launch({
           profileDir: account.profileDir,
           lockPath: path.join(path.dirname(account.profileDir), "profile.lock"),
@@ -180,7 +183,8 @@ export class AccountController {
         this.page = page;
         this.proxyKey = proxyKey;
       } else {
-        this.log(`reusing browser (${settings.enabled ? `${settings.protocol} proxy` : "direct"})`);
+        this.log("reusing browser");
+        this.logProxySettings(settings);
       }
 
       return await this.connect(generation, settings.enabled);
@@ -270,6 +274,19 @@ export class AccountController {
     const serialized = toSerializedError(error);
     this.log(`error ${serialized.code}`);
     this.setView({ ...this.view, status: "error", error: serialized });
+  }
+
+  /** Logs proxy routing metadata only; credentials are never logged. */
+  private logProxySettings(settings: ProxySettings): void {
+    this.log(`proxy.enabled=${settings.enabled}`);
+    if (settings.enabled) {
+      this.log(`proxy.protocol=${settings.protocol}`);
+      this.log(`proxy.host=${settings.host}`);
+      this.log(`proxy.port=${settings.port}`);
+      this.log("mode=proxy");
+    } else {
+      this.log("mode=direct");
+    }
   }
 
   private setView(view: AccountView): void {

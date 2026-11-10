@@ -5,6 +5,11 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { BrowserManager } from "../../src/core/browser/browser-manager";
 import { createPlaywrightLauncher } from "../../src/core/browser/browser-factory";
+import {
+  ProxySettingsStore,
+  toPlaywrightProxyConfig,
+  type SecretCodec,
+} from "../../src/core/network/proxy-settings";
 import { browserTestPaths } from "./browser-env";
 import { startForwardingSocks5Proxy } from "./socks5-proxy";
 
@@ -166,6 +171,39 @@ describe("real Chromium", () => {
 
     expect(await page.locator("h1").textContent()).toBe("direct target");
     expect(manager.running).toBe(true);
+    await manager.close();
+  });
+
+  it("uses the proxy saved in settings for a persistent Chromium context", async () => {
+    const proxy = track(await startProxy());
+    const codec: SecretCodec = {
+      isAvailable: async () => true,
+      encrypt: async (text) => Buffer.from(text, "utf8").toString("base64"),
+      decrypt: async (payload) => Buffer.from(payload, "base64").toString("utf8"),
+    };
+    const { profileDir, lockPath } = browserTestPaths();
+    const store = new ProxySettingsStore(path.join(path.dirname(profileDir), "proxy.json"), {
+      secrets: codec,
+    });
+    await store.save({
+      enabled: true,
+      protocol: "http",
+      host: "127.0.0.1",
+      port: proxy.port,
+      username: "",
+    });
+
+    const settings = await store.load();
+    expect(settings.enabled).toBe(true);
+    const proxyConfig = toPlaywrightProxyConfig(settings);
+    if (!proxyConfig) throw new Error("The saved proxy did not reach Playwright");
+
+    const manager = new BrowserManager({ launcher: createPlaywrightLauncher() });
+    const page = await manager.launch({ profileDir, lockPath, proxy: proxyConfig });
+    await page.goto("http://saved-settings.invalid/");
+
+    expect(await page.locator("h1").textContent()).toBe("via proxy");
+    expect(proxy.requests).toContain("http://saved-settings.invalid/");
     await manager.close();
   });
 

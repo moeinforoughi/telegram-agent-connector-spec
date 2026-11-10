@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AccountStatus, AccountView } from "../../shared/account";
 import { APP_NAME } from "../../shared/constants";
 import type { IpcResult } from "../../shared/ipc";
@@ -93,6 +93,19 @@ function describeProxyTest(result: ProxyTestResult): string {
   }
 }
 
+function buildProxyRequest(form: ProxyForm): SaveProxySettingsRequest | null {
+  const port = Number(form.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+  return {
+    enabled: form.enabled,
+    protocol: form.protocol,
+    host: form.host,
+    port,
+    username: form.username,
+    ...(form.password ? { password: form.password } : {}),
+  };
+}
+
 export function App() {
   const [view, setView] = useState<AccountView>(EMPTY_VIEW);
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -103,6 +116,7 @@ export function App() {
   const [proxyMessage, setProxyMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(
     null,
   );
+  const proxyTouched = useRef(false);
 
   useEffect(() => {
     if (!window.api) {
@@ -121,8 +135,9 @@ export function App() {
     });
     window.api.getProxySettings().then((result) => {
       if (!active) return;
-      if (result.ok) setProxy(formFromView(result.data));
-      else setProxyMessage({ kind: "error", text: result.error.message });
+      // Do not overwrite edits the user made before the initial load resolved.
+      if (result.ok && !proxyTouched.current) setProxy(formFromView(result.data));
+      if (!result.ok) setProxyMessage({ kind: "error", text: result.error.message });
     });
     const unsubscribe = window.api.onAccountStatus((next) => {
       if (active) setView(next);
@@ -158,48 +173,59 @@ export function App() {
   }, [run]);
 
   const updateProxy = useCallback((patch: Partial<ProxyForm>) => {
+    proxyTouched.current = true;
     setProxy((current) => ({ ...current, ...patch }));
   }, []);
 
-  const buildProxyRequest = useCallback((): SaveProxySettingsRequest | null => {
-    const port = Number(proxy.port);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      setProxyMessage({ kind: "error", text: "Port must be an integer between 1 and 65535." });
-      return null;
-    }
-    return {
-      enabled: proxy.enabled,
-      protocol: proxy.protocol,
-      host: proxy.host,
-      port,
-      username: proxy.username,
-      ...(proxy.password ? { password: proxy.password } : {}),
-    };
-  }, [proxy]);
+  const persistProxy = useCallback(
+    async (form: ProxyForm, successMessage: string): Promise<boolean> => {
+      const request = buildProxyRequest(form);
+      if (!request) {
+        setProxyMessage({ kind: "error", text: "Port must be an integer between 1 and 65535." });
+        return false;
+      }
+      setProxyBusy("save");
+      setProxyMessage(null);
+      try {
+        const result = await window.api.saveProxySettings(request);
+        if (result.ok) {
+          setProxy(formFromView(result.data));
+          setProxyMessage({ kind: "ok", text: successMessage });
+          return true;
+        }
+        setProxyMessage({ kind: "error", text: result.error.message });
+        return false;
+      } catch {
+        setProxyMessage({ kind: "error", text: "Could not save proxy settings." });
+        return false;
+      } finally {
+        setProxyBusy(null);
+      }
+    },
+    [],
+  );
 
   const saveProxy = useCallback(async () => {
-    const request = buildProxyRequest();
-    if (!request) return;
-    setProxyBusy("save");
-    setProxyMessage(null);
-    try {
-      const result = await window.api.saveProxySettings(request);
-      if (result.ok) {
-        setProxy(formFromView(result.data));
-        setProxyMessage({ kind: "ok", text: "Proxy settings saved." });
-      } else {
-        setProxyMessage({ kind: "error", text: result.error.message });
-      }
-    } catch {
-      setProxyMessage({ kind: "error", text: "Could not save proxy settings." });
-    } finally {
-      setProxyBusy(null);
-    }
-  }, [buildProxyRequest]);
+    await persistProxy(proxy, "Proxy settings saved.");
+  }, [persistProxy, proxy]);
+
+  const toggleProxy = useCallback(
+    (enabled: boolean) => {
+      const next = { ...proxy, enabled };
+      proxyTouched.current = true;
+      setProxy(next);
+      // Persist immediately: the enabled flag must never stay only in the form.
+      void persistProxy(next, "Proxy settings saved.");
+    },
+    [persistProxy, proxy],
+  );
 
   const testProxy = useCallback(async () => {
-    const request = buildProxyRequest();
-    if (!request) return;
+    const request = buildProxyRequest(proxy);
+    if (!request) {
+      setProxyMessage({ kind: "error", text: "Port must be an integer between 1 and 65535." });
+      return;
+    }
     setProxyBusy("test");
     setProxyMessage(null);
     try {
@@ -223,7 +249,7 @@ export function App() {
     } finally {
       setProxyBusy(null);
     }
-  }, [buildProxyRequest]);
+  }, [proxy]);
 
   const errorMessage = failure ?? view.error?.message;
   const hasAccount = view.id !== null;
@@ -341,7 +367,7 @@ export function App() {
               type="checkbox"
               checked={proxy.enabled}
               disabled={proxyBusy !== null}
-              onChange={(event) => updateProxy({ enabled: event.target.checked })}
+              onChange={(event) => toggleProxy(event.target.checked)}
             />
             Enable proxy
           </label>

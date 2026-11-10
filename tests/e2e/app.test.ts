@@ -166,6 +166,43 @@ describe("Electron shell", () => {
     expect(await launched.page.getByRole("button", { name: "Save Settings" }).count()).toBe(1);
   });
 
+  it("saves the Enable proxy toggle immediately through the UI", async () => {
+    const launched = await launchApp();
+
+    const toggle = launched.page.getByLabel("Enable proxy");
+    await expect.poll(() => toggle.isChecked(), { timeout: 5_000 }).toBe(false);
+    await toggle.check();
+    expect(await toggle.isChecked()).toBe(true);
+
+    const dataRoot = userDataDir;
+    if (!dataRoot) throw new Error("Missing test data directory");
+    const settingsFile = path.join(dataRoot, "config", "proxy.json");
+
+    // No Save click: enabling the proxy must persist by itself.
+    await expect
+      .poll(
+        () => {
+          try {
+            const raw = JSON.parse(fs.readFileSync(settingsFile, "utf8")) as {
+              enabled?: boolean;
+            };
+            return raw.enabled;
+          } catch {
+            return undefined;
+          }
+        },
+        { timeout: 5_000 },
+      )
+      .toBe(true);
+
+    const raw = JSON.parse(fs.readFileSync(settingsFile, "utf8")) as {
+      enabled: boolean;
+      host: string;
+      port: number;
+    };
+    expect(raw).toMatchObject({ enabled: true, host: "127.0.0.1", port: 10808 });
+  });
+
   it("persists proxy settings and never writes credentials in plain text", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tac-e2e-proxy-"));
     const first = await launchApp(dir);

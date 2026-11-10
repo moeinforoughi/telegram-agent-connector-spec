@@ -8,14 +8,10 @@ import type { SecretCodec } from "../core/network/proxy-settings";
  */
 export function createElectronSecretCodec(): SecretCodec {
   return {
-    available: () => {
-      try {
-        return safeStorage.isEncryptionAvailable();
-      } catch {
-        return false;
-      }
-    },
-    encrypt: (plainText) => safeStorage.encryptString(plainText).toString("base64"),
-    decrypt: (payload) => safeStorage.decryptString(Buffer.from(payload, "base64")),
+    isAvailable: () => safeStorage.isAsyncEncryptionAvailable(),
+    encrypt: async (plainText) =>
+      (await safeStorage.encryptStringAsync(plainText)).toString("base64"),
+    decrypt: async (payload) =>
+      (await safeStorage.decryptStringAsync(Buffer.from(payload, "base64"))).result,
   };
 }
