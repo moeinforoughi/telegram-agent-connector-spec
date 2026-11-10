@@ -31,23 +31,18 @@ Before changing anything:
 
 ## Current state (2026-11-10)
 
-**Phase 2 is COMPLETE FOR MVP** with accepted deferred verifications.
-**Phase 3 is COMPLETE FOR MVP**: two real accounts (`moein1`, `kaonashi`) logged
-in through SOCKS5 `127.0.0.1:12334`, both browsers were closed, and both
-profiles/sessions were preserved for Phase 4. A third live account was not tested
-(accepted). Normal browser close now shows `Ready` with last-known login, not an
-error.
+**Phase 2 and Phase 3 are COMPLETE FOR MVP.** Two real accounts/profiles
+(`moein1`, `kaonashi`) are preserved for Phase 4. Never delete, reset, logout,
+remove, or commit their profiles/cookies/tokens; no personal data in the repo.
 
-**Phase 4 — Telegram Operations is planned only, not started.** Read
-`docs/phase4/PHASE4_PLAN.md`; implementation requires explicit user approval and
-starts read-only. Never send/edit/delete a real message without explicit
-approval. MCP remains Phase 5.
+**Phase 4 — Telegram Operations is in progress: Task 1 complete.** A read-only
+DOM/selector audit, `chat-surface` adapter, fixtures and tests are committed
+(`363ea0a`). Task 2 (per-account action queue + read-only chat/message helpers)
+must not start without explicit user approval. No message may be sent, edited,
+deleted, forwarded, or reacted to. MCP remains Phase 5.
 
-**Critical:** never delete, reset, logout, or remove the two existing account
-profiles/sessions; never extract cookies/tokens or commit profile data. Phase 4
-tests use these preserved sessions.
-
-Do not re-run Phase 2 deferred tests unless asked. Phase 4/5 is not authorized.
+Read `docs/phase4/TASK1_DOM_AUDIT.md` for the confirmed selectors and
+limitations. Do not start Phase 5.
 
 Proxy rules (permanent): the connector uses only the user's saved manual proxy
 (SOCKS5/HTTP, host, port, optional credentials). There is no system-proxy

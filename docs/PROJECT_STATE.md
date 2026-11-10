@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (Phase 3 complete for MVP; Phase 4 planned)
+Last updated: 2026-11-10 (Phase 4 Task 1 complete; Task 2 awaiting approval)
 
 ## Project Goal
 
@@ -48,15 +48,15 @@ implied affiliation.
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
 | 2 — Browser Manager, proxy, single account login | **COMPLETE FOR MVP** — deferred verifications accepted | `docs/phase2/PHASE2_REPORT.md` (§9.1); Tasks 1–8 and proxy fixes committed |
 | 3 — Multi-account management | **COMPLETE FOR MVP** — two live accounts PASS; third live account accepted as not tested | `docs/phase3/PHASE3_REPORT.md`, commits `d1107bc`, `7ed25a2` |
-| 4 — Telegram Operations | Planned — not started; awaiting explicit approval | `docs/phase4/PHASE4_PLAN.md`, `TASKS/05_TELEGRAM_OPERATIONS.md` |
+| 4 — Telegram Operations | **In progress** — Task 1 (read-only DOM/selector audit) complete; Task 2 awaiting approval | `docs/phase4/PHASE4_PLAN.md`, `docs/phase4/TASK1_DOM_AUDIT.md`, commit `363ea0a` |
 | 5+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 4 — Telegram Operations, **planned only; not started**. The plan is
-`docs/phase4/PHASE4_PLAN.md`; implementation requires explicit user approval.
-Start read-only with the two preserved sessions (`moein1`, `kaonashi`). No
-message send/edit/delete without explicit approval. Do not start Phase 5 (MCP).
+Phase 4 Task 1 — **COMPLETE** (`363ea0a`): read-only DOM/selector audit,
+`chat-surface` adapter, fixtures and tests. Task 2 (per-account action queue and
+read-only chat/message helpers) is **not started** and waits for explicit user
+approval. Do not send/edit/delete/forward messages. Preserve the two sessions.
 
 ## Session-Independent Development
 
@@ -174,6 +174,14 @@ code, and test evidence win.
   accepted for MVP. Only labels are recorded; no phone/identity/cookie/token is
   in the repository. **Do not delete, reset, logout, or remove these two
   profiles/sessions.**
+- Phase 4 Task 1 (2026-11-10, commit `363ea0a`): read-only Telegram DOM/selector
+  audit and adapter. Confirmed selectors for main shell, chat list, search,
+  open chat, message rows/direction, channel posts, loading and empty states.
+  Added `src/core/telegram/chat-surface.ts`, 11 unit tests and 7 real-Chromium
+  fixture tests. Real smoke: both preserved sessions were `ready` (11 and 12
+  chat rows); one opened chat classified 30 messages (30 incoming, 0 outgoing)
+  without reading content. No message was sent or modified. Automated:
+  129 unit, 20 integration, 13 E2E; `npm run check` passes.
 - Known architecture gap: the browser close reason is not modelled. An
   intentional user close currently becomes a `BROWSER_CLOSED` error; a crash is
   only logged. Browser runtime state and stored session state are not yet
@@ -205,6 +213,7 @@ code, and test evidence win.
 | `d1107bc` | Multi-account manager, registry, IPC and dashboard |
 | `7ed25a2` | Normal browser close becomes Ready, not an error |
 | `e3ffc6e` | Guard against duplicate account creation |
+| `363ea0a` | Read-only Telegram chat surface detection |
 
 ## Key Documents
 
@@ -217,7 +226,8 @@ code, and test evidence win.
   deferred checks.
 - `docs/phase3/PHASE3_PLAN.md` — Phase 3 plan (complete).
 - `docs/phase3/PHASE3_REPORT.md` — Phase 3 final report and live results.
-- `docs/phase4/PHASE4_PLAN.md` — Phase 4 plan (planned, not started).
+- `docs/phase4/PHASE4_PLAN.md` — Phase 4 plan (Task 1 complete).
+- `docs/phase4/TASK1_DOM_AUDIT.md` — read-only selector audit and smoke results.
 - `TASKS/00_DISCOVERY_AND_SPIKE.md`, `TASKS/01_REPO_FOUNDATION.md`,
   `TASKS/02_DESKTOP_SHELL.md`, `TASKS/03_BROWSER_LOGIN_SESSION.md`,
   `TASKS/04_MULTI_ACCOUNT.md`, `TASKS/05_TELEGRAM_OPERATIONS.md`.

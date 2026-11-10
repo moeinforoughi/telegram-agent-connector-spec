@@ -43,3 +43,12 @@ Priority: P1 | Depends on: TASK 03, TASK 04 | Commit: `feat(telegram): add safe 
 - MCP remains Phase 5; no LLM processing of message content.
 - The two existing profiles/sessions must never be deleted or reset during
   Phase 4.
+
+## Phase 4 Task 1 Status (2026-11-10)
+- [x] Read-only DOM/selector audit with both real sessions.
+- [x] Confirmed selectors for main shell, chat list, search, open chat, header,
+  messages/direction, channel posts, loading and empty state.
+- [x] Read-only `chat-surface` adapter + fixtures + unit/integration tests.
+- Report: `docs/phase4/TASK1_DOM_AUDIT.md`; commit `363ea0a`.
+- Operations (chat list/search/message read UI/IPC) are **not implemented yet**;
+  they belong to Phase 4 Tasks 2–4.

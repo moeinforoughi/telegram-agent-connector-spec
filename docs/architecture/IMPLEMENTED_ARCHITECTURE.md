@@ -38,7 +38,7 @@ Chrome for Testing renders Telegram Web.
 | Local IPC | `src/main/ipc-router.ts`, `src/main/trusted-sender.ts`, `src/main/ipc-result.ts`, `src/shared/ipc.ts`, `src/preload/index.ts` |
 | Data paths | `src/main/paths.ts`, `src/shared/constants.ts` |
 | Browser | `src/core/browser/browser-manager.ts`, `browser-factory.ts`, `browser-types.ts`, `profile-paths.ts`, `profile-lock.ts` |
-| Telegram | `src/core/telegram/selectors/selector-map.ts`, `login-detector.ts`, `login-monitor.ts`, `navigation.ts`, `telegram-types.ts` |
+| Telegram | `src/core/telegram/selectors/selector-map.ts`, `login-detector.ts`, `login-monitor.ts`, `navigation.ts`, `telegram-types.ts`, `chat-surface.ts` |
 | Account | `src/core/account/account-store.ts`, `src/main/account-controller.ts`, `src/main/account-manager.ts`, `src/shared/account.ts` |
 | Network | `src/core/network/proxy-server.ts` (parser), `proxy-settings.ts` (store/validation), `proxy-probe.ts` (real tunnel test), `src/main/secure-storage.ts` (safeStorage adapter) |
 | Renderer | `src/renderer/src/App.tsx`, `styles.css` |
@@ -241,6 +241,19 @@ login codes, or 2FA passwords. Login success is inferred only from the visible
 chat list. Logout/revocation is detected indirectly: Telegram Web returns to the
 auth/QR UI and the prompt reappears.
 
+## 5.1 Read-only chat surface (Phase 4 Task 1)
+
+`chat-surface.ts` adds a read-only adapter over `Page`:
+
+- `detectMainSurface`, `detectChatList`, `detectOpenChat`, `readMessageStats`,
+  `detectSearchState`, `detectChannel`, and a `TelegramDomProbe` with
+  `attribute` access.
+- All detection is by visible elements/roles/classes; no message text is read.
+- Counts only for messages (total/incoming/outgoing/channel posts), no content.
+- Unknown/missing UI fails safely as `ui_changed`; no guessing.
+- Confirmed against two real sessions and synthetic fixtures. Selector details
+  and limitations: `docs/phase4/TASK1_DOM_AUDIT.md`.
+
 ## 6. Account architecture
 
 ### Store
@@ -366,8 +379,8 @@ connector; the configured proxy is the only proxy the connector applies.
 
 | Layer | Location | Count at Phase 2 final | What it proves |
 |---|---|---|---|
-| Unit | `tests/unit/` | 19 files / 118 tests | Pure logic: proxy parsing/settings/probe, account registry/manager/controller, lock, detector, monitor, IPC, paths, windows, errors |
-| Integration | `tests/integration/` | 2 files / 13 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, saved-settings→Playwright, Telegram HTML fixtures |
+| Unit | `tests/unit/` | 20 files / 129 tests | Pure logic: proxy parsing/settings/probe, account registry/manager/controller, Telegram surface, lock, detector, monitor, IPC, paths, windows, errors |
+| Integration | `tests/integration/` | 3 files / 20 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, saved-settings→Playwright, Telegram HTML fixtures, read-only chat surface |
 | Electron E2E | `tests/e2e/` | 1 file / 13 tests | Real Electron: security invariants, preload surface, data paths, multi-account dashboard/list/create-three, proxy form, immediate enable persistence, credential protection, Playwright in Main, navigation blocking, CSP, quit |
 | Live manual | user-run | 0 run | Real QR/2FA/session/restart through the user's proxy; requires the user |
 

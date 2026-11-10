@@ -4,117 +4,109 @@
 Telegram Agent Connector
 
 ## Current Phase
-Phase 2 — COMPLETE FOR MVP (deferred verifications accepted).
-Phase 3 — **COMPLETE FOR MVP** (two live accounts PASS; third accepted as not
-tested).
-Phase 4 — Telegram Operations — **planned only; not started; awaiting explicit
-approval**.
+Phase 2 — COMPLETE FOR MVP.
+Phase 3 — COMPLETE FOR MVP.
+Phase 4 — Telegram Operations — **in progress: Task 1 complete; Task 2 awaiting
+explicit approval**.
 
 ## Current Task
-No implementation task is active. Phase 4 plan is written; the next action is
-user approval to start Phase 4 Task 1 (read-only selector audit).
+No implementation task is active. Task 1 (read-only DOM/selector audit) is
+complete; Task 2 (per-account action queue + read-only chat/message helpers) must
+not start without user approval.
 
 ## Overall Status
-Phase 3 closed. Phase 4 not authorized to implement. Phase 5 (MCP) not started.
+Phase 4 Task 1 done. Read-only only. No message was sent, edited, deleted,
+forwarded, or reacted to.
 
 ## Last Verified Commit
-`e3ffc6e` `fix(accounts): guard against duplicate account creation` passed full
-`npm run check` (118 unit, 13 integration, 13 E2E). The documentation commit
+`363ea0a` `feat(telegram): add read-only chat surface detection` passed full
+`npm run check` (129 unit, 20 integration, 13 E2E). The documentation commit
 containing this handoff is the latest commit on `main` (check `git log -1`).
 
 ## Git Branch
 main
 
 ## Working Tree
-Phase 3 closure and Phase 4 plan documentation: `docs/phase3/PHASE3_REPORT.md`,
-`docs/phase4/PHASE4_PLAN.md`, `PROJECT_STATE.md`, `LATEST_HANDOFF.md`,
-`SESSION_LOG.md`, `RESUME_PROMPT.md`, `PHASE3_PLAN.md`, `TASKS/04`, `TASKS/05`,
-`ARCHITECTURE_DECISIONS.md` (ADR-023), `IMPLEMENTED_ARCHITECTURE.md`, `AGENTS.md`.
-No product code is uncommitted.
+Phase 4 Task 1 documentation: `docs/phase4/TASK1_DOM_AUDIT.md`,
+`docs/phase4/PHASE4_PLAN.md`, `PROJECT_STATE.md`, this handoff,
+`SESSION_LOG.md`, `RESUME_PROMPT.md`. No product code is uncommitted.
 
-## Phase 3 Final Results
+## Completed Work — Phase 4 Task 1
 
-- Two real accounts created and logged in: `moein1`, `kaonashi`.
-- Proxy: SOCKS5 `127.0.0.1:12334`.
-- Both browsers launched and both logins reached Connected.
-- Both browsers closed by the user; no account removed; both profiles/sessions
-  preserved for Phase 4.
-- A third live account was not tested (accepted for MVP; automated tests use
-  three).
-- Only labels are recorded. No phone number, identity data, cookie, token, or
-  profile path is in the repository.
+- Read-only audit of the real Telegram Web DOM with both preserved sessions
+  (`moein1`, `kaonashi`) through SOCKS5 `127.0.0.1:12334`.
+- Confirmed selectors for: main shell, chat list rows, search input/results/empty,
+  open chat, header, message rows, incoming/outgoing, channel posts, loading and
+  empty states.
+- Added `src/core/telegram/chat-surface.ts`:
+  `detectMainSurface`, `detectChatList`, `detectOpenChat`, `readMessageStats`,
+  `detectSearchState`, `detectChannel`, `createTelegramDomProbe`.
+- Extended `selector-map.ts`; no text/credential extraction.
+- Added synthetic fixtures and 11 unit + 7 real-Chromium integration tests.
+- Real smoke (no content recorded):
+  - `moein1`: main ready, chat list 11 rows.
+  - `kaonashi`: main ready, chat list 12 rows.
+  - One opened chat: type user, title visible, 30 messages (30 incoming,
+    0 outgoing).
+- Report: `docs/phase4/TASK1_DOM_AUDIT.md`.
 
-**Do not delete, reset, logout, or remove these two profiles/sessions. They are
-the Phase 4 test accounts.**
-
-## Browser Close Semantics (`7ed25a2`)
-
-Closing the Chromium window normally now yields:
-
-```text
-Account Status: Ready
-Browser: Closed
-Login: Last known Connected
-```
-
-- `ready` is not an error; the profile/session is untouched.
-- Reconnect reuses the same profile and stored session.
-- Closing one account's browser does not affect the other.
-- `safeStorage`, IPC, and account isolation remain unchanged.
-
-## Automated Verification (2026-11-10, `7ed25a2`)
+## Test Results (2026-11-10, `363ea0a`)
 
 - `npm run check` — PASS (exit 0).
 - Typecheck, lint, format — PASS.
-- Unit — 19 files / 118 tests PASS.
-- Integration — 2 files / 13 tests PASS (real Chromium).
+- Unit — 20 files / 129 tests PASS.
+- Integration — 3 files / 20 tests PASS (real Chromium fixtures).
 - Build — PASS.
-- Electron E2E — 13 tests PASS with `ELECTRON_RUN_AS_NODE=1` exported.
+- Electron E2E — 13 tests PASS.
 
-## Phase 4 Plan
+## Confirmed Selectors (summary)
 
-`docs/phase4/PHASE4_PLAN.md` (planned, not started):
+- Main: `#page-chats`, `#column-left`; login: `#auth-pages`.
+- Chat list: `#chatlist-container`, `.chatlist-chat[data-peer-id]`.
+- Search: `.input-search-input`, `.search-super`, `[class*="NoResults"]`.
+- Open chat: `#column-center .chats-container .chat.active`, `.topbar`,
+  `.peer-title`.
+- Messages: `.bubbles`, `.bubble[data-mid]`, `.bubble.is-in` / `.is-out`,
+  `.channel-post`.
+- Loading: `.preloader-container.is-visible`.
 
-- Read-only first: chat list, search, bounded message reading, channel view.
-- Use the two preserved sessions; no cookie/token extraction.
-- Per-account action queue; centralized selectors; stop on UI change.
-- Send/Reply only with explicit per-step approval; delete/edit/forward out of
-  scope; no bulk/spam/rate-limit bypass.
-- MCP remains Phase 5.
+Full table and limitations: `docs/phase4/TASK1_DOM_AUDIT.md` §3/§5.
+
+## Preserved Sessions — Important
+
+Two real accounts/profiles (`moein1`, `kaonashi`) are preserved for Phase 4.
+Never delete, reset, logout, remove, or commit their profiles/cookies/tokens.
+No personal data is in the repository.
 
 ## Remaining Work
 
-1. User reviews/approves the Phase 4 plan.
-2. Phase 4 Task 1: read-only DOM/selector audit with the two existing sessions.
-3. Implement read-only operations + queue + UI, then live read-only validation.
-4. Do not implement Send/Reply without explicit approval.
-5. Do not start Phase 5 (MCP).
+1. Wait for user approval to start Phase 4 Task 2.
+2. Task 2: per-account action queue + read-only chat/message helpers (no writes).
+3. Then Task 3: read-only IPC/preload/renderer.
+4. Send/Reply are separate, explicitly approved work; Delete/Edit/Forward are out
+   of scope. MCP remains Phase 5.
 
-## Known Issues / Constraints
+## Known Limitations
 
-- Crash vs normal close is not distinguished beyond the `ready` transition; a
-  real crash is only logged.
-- Remove during an in-flight start can race with stop/relaunch; not covered by a
-  test.
-- The manual proxy is global for all accounts; per-account proxy is out of scope.
-- Max three active Chromium instances.
-- `ELECTRON_RUN_AS_NODE=1` is exported by the DSH shell only; `npm run check`
-  strips it, `npm run dev` needs it unset.
-- `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` is dev/test only; Phase 6 bundles
-  Chromium.
-- The two existing account profiles are real user data: never delete or reset
-  them, and never commit their contents.
+- Search-empty marker is a hashed CSS-module class; detect via the stable
+  `NoResults` prefix and fail safely otherwise.
+- `data-type="chat"` can appear on channel-like chats; `.channel-post` is the
+  fallback channel signal.
+- Chat-list-level channel/group classification is not reliable before opening.
+- Opening a chat may mark messages read; avoid unnecessary opens.
+- Message history can take seconds to load; use the preloader and bounded wait.
+- Crash vs normal close is not distinguished beyond `ready`.
+- The manual proxy is global for all accounts.
 
 ## Exact Next Action
-Ask the user to approve starting Phase 4 (plan review) and confirm the read-only
-scope. Then begin Phase 4 Task 1 (read-only selector/DOM audit) without sending,
-editing, or deleting any message.
+Wait for explicit user approval for Phase 4 Task 2. Do not send, edit, delete,
+forward, or react to any message. Do not start Phase 5.
 
 ## Resume Instructions
 Read `AGENTS.md`, `docs/PROJECT_STATE.md`, this file,
 `docs/handoff/SESSION_LOG.md`, `docs/handoff/RESUME_PROMPT.md`,
-`docs/phase3/PHASE3_REPORT.md`, `docs/phase4/PHASE4_PLAN.md`,
+`docs/phase4/PHASE4_PLAN.md`, `docs/phase4/TASK1_DOM_AUDIT.md`,
 `TASKS/05_TELEGRAM_OPERATIONS.md`, and
 `docs/architecture/IMPLEMENTED_ARCHITECTURE.md`. Check `git status`,
-`git log --oneline -12`, and `git diff`. Phase 3 is closed; Phase 4 has no code
-yet. Preserve both account profiles/sessions.
+`git log --oneline -12`, and `git diff`. Phase 4 Task 1 is committed; Task 2 has
+no code yet. Preserve both sessions.

@@ -1,6 +1,6 @@
 # Phase 4 — Telegram Operations (Plan)
 
-Status: **Planned — not started; awaiting explicit approval.**
+Status: **In progress — Task 1 complete; Task 2 awaiting explicit approval.**
 Date: 2026-11-10
 Depends on: Phase 3 (COMPLETE FOR MVP)
 Scope source: `TASKS/05_TELEGRAM_OPERATIONS.md`, user direction 2026-11-10,
@@ -79,6 +79,7 @@ AccountManager
 ### Task 1 — Phase 4 plan, task mapping and selector audit
 Write this plan, map `TASKS/05`, confirm the current WebZ DOM for chat list,
 search, message list, and composer using read-only inspection. No writes.
+**Status: COMPLETE (`363ea0a`) — report `docs/phase4/TASK1_DOM_AUDIT.md`.**
 
 ### Task 2 — Per-account action queue and safe read helpers
 Add a small serialized queue per account and read-only helpers for chat list and
@@ -149,3 +150,13 @@ Automated + live read-only results, limitations, handoff, report.
 - Bulk messaging, mass invite, spam, rate-limit bypass.
 - AI/LLM processing of message content.
 - Reading cookies/tokens/session files.
+
+## 10. Status (2026-11-10)
+
+| Task | Status |
+|---|---|
+| 1 — Plan/selector audit | **Done** (`363ea0a`); report `docs/phase4/TASK1_DOM_AUDIT.md` |
+| 2 — Action queue + read helpers | Not started; awaiting approval |
+| 3 — Read-only IPC/renderer | Not started |
+| 4 — Live read-only validation | Not started |
+| 5–8 | Not started |

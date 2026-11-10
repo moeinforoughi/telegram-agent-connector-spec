@@ -277,6 +277,23 @@
 - Documentation commit follows; Phase 3 remains COMPLETE FOR MVP and Phase 4
   remains planned/not started.
 
+## 2026-11-10 — Phase 4 Task 1: read-only DOM/selector audit
+
+- User approved Phase 4 and limited this step to Task 1 (read-only).
+- Audited the real WebZ DOM with both preserved sessions (`moein1`,
+  `kaonashi`) through SOCKS5 `127.0.0.1:12334`; no message was sent/edited/
+  deleted. Only structure, classes, roles and attribute names were inspected.
+- Confirmed selectors for main shell, chat list, search, open chat, header,
+  messages/direction, channel posts, loading and empty state.
+- Added `src/core/telegram/chat-surface.ts` and extended `selector-map.ts`.
+- Added synthetic fixtures, 11 unit tests and 7 real-Chromium integration tests.
+- Real smoke: both sessions `ready` (11 and 12 chat rows); one opened chat typed
+  `user` with 30 messages (30 incoming, 0 outgoing), no content recorded.
+- `npm run check` PASS: 129 unit, 20 integration, 13 E2E.
+- Commit `363ea0a`. Report: `docs/phase4/TASK1_DOM_AUDIT.md`.
+- Stopped after Task 1; Task 2 awaits explicit approval. No writes, no MCP.
+- Documentation commit follows; check `git log -1`.
+
 ## 2026-11-10 — Phase 3 multi-account implementation
 
 - Phase 2 closed for MVP (`8126928`) with accepted deferred verifications.
