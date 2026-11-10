@@ -1,4 +1,6 @@
-export type LoginState = "LOGIN_REQUIRED" | "AUTHENTICATING" | "CONNECTED" | "UNKNOWN";
+import type { LoginState } from "../../shared/account";
+
+export type { LoginState };
 
 export type LoginDetection = {
   readonly state: LoginState;
