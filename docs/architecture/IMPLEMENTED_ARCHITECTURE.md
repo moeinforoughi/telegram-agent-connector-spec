@@ -1,15 +1,15 @@
-# Implemented Architecture — Phase 0 to Phase 2 Task 8
+# Implemented Architecture — Phase 0 to Phase 3
 
 Status: current implementation, reconciled against the code and tests in the
 repository. Phase 2 live verification is still pending; see
 `docs/phase2/PHASE2_REPORT.md`. The connection path is now the user's manual
 proxy configuration (ADR-020); system-proxy auto-detection was removed.
 
-Scope: Phase 0 feasibility spike, Phase 1 Electron foundation, Phase 2 Tasks 1–8
-and the final manual-proxy/browser-lifecycle fix.
-This document records what is **actually implemented**, not only the target
-design in `ARCHITECTURE.md`. Where the implementation differs, the difference is
-listed in §9 with its reason and limits.
+Scope: Phase 0 feasibility spike, Phase 1 Electron foundation, Phase 2 (browser,
+manual proxy, single account), and Phase 3 multi-account management. This
+document records what is **actually implemented**, not only the target design in
+`ARCHITECTURE.md`. Where the implementation differs, the difference is listed in
+§9 with its reason and limits.
 
 Evidence base: commits `619c095` (Phase 1), `22789a8`–`cce43eb` (Phase 2 Tasks
 1–6), `07f20d9` (Task 7), the Task 8 verification commits, and the manual proxy
@@ -39,7 +39,7 @@ Chrome for Testing renders Telegram Web.
 | Data paths | `src/main/paths.ts`, `src/shared/constants.ts` |
 | Browser | `src/core/browser/browser-manager.ts`, `browser-factory.ts`, `browser-types.ts`, `profile-paths.ts`, `profile-lock.ts` |
 | Telegram | `src/core/telegram/selectors/selector-map.ts`, `login-detector.ts`, `login-monitor.ts`, `navigation.ts`, `telegram-types.ts` |
-| Account | `src/core/account/account-store.ts`, `src/main/account-controller.ts`, `src/shared/account.ts` |
+| Account | `src/core/account/account-store.ts`, `src/main/account-controller.ts`, `src/main/account-manager.ts`, `src/shared/account.ts` |
 | Network | `src/core/network/proxy-server.ts` (parser), `proxy-settings.ts` (store/validation), `proxy-probe.ts` (real tunnel test), `src/main/secure-storage.ts` (safeStorage adapter) |
 | Renderer | `src/renderer/src/App.tsx`, `styles.css` |
 
@@ -71,12 +71,12 @@ Chrome for Testing renders Telegram Web.
 `nodeIntegration: false`, `webSecurity: true`, `webviewTag: false`,
 `allowRunningInsecureContent: false`, `spellcheck: false`.
 
-`src/preload/index.ts` exposes exactly one bridge, `window.api`, with nine
+`src/preload/index.ts` exposes exactly one bridge, `window.api`, with eleven
 invoke functions and one subscription:
 
-`getAppInfo`, `getAccount`, `startAccount`, `stopAccount`, `openTelegram`,
-`removeAccount`, `getProxySettings`, `saveProxySettings`, `testProxy`,
-`onAccountStatus`.
+`getAppInfo`, `listAccounts`, `createAccount`, `renameAccount`, `startAccount`,
+`stopAccount`, `openTelegram`, `removeAccount`, `getProxySettings`,
+`saveProxySettings`, `testProxy`, `onAccountStatus`.
 
 No `ipcRenderer`, `require`, `process`, `Buffer`, or module loader is exposed.
 The E2E suite asserts this at runtime.
@@ -103,20 +103,26 @@ URL (`will-frame-navigate`, `will-redirect`).
 | Channel | Payload | Result |
 |---|---|---|
 | `app:get-info` | none | `AppInfo` |
-| `account:get` | none | `AccountView` |
-| `account:start` | none | `AccountView` |
-| `account:stop` | none | `AccountView` |
-| `account:open` | none | `AccountView` |
-| `account:remove` | `{ deleteProfile: boolean }` | `AccountView` |
+| `account:list` | none | `AccountView[]` |
+| `account:create` | `{ label?: string }` | `AccountView` |
+| `account:rename` | `{ id: string, label: string }` | `AccountView` |
+| `account:start` | `{ id: string }` | `AccountView` |
+| `account:stop` | `{ id: string }` | `AccountView` |
+| `account:open` | `{ id: string }` | `AccountView` |
+| `account:remove` | `{ id: string, deleteProfile: boolean }` | `{ removed: true }` |
+| `proxy:get` | none | `ProxySettingsView` |
+| `proxy:save` | `SaveProxySettingsRequest` | `ProxySettingsView` |
+| `proxy:test` | `ProxyTestRequest` | `ProxyTestResult` |
 
-Event: `account:status` (Main → Renderer) carries an `AccountView`.
+Event: `account:status` (Main → Renderer) carries one `AccountView`.
 
 `src/main/ipc-router.ts` registers only allowlisted channels, removes stale
 handlers first, validates the sender with `isTrustedSender` (sender webContents
-id, main frame, and exact current URL), dispatches per channel, validates the
-`account:remove` payload as a boolean, and wraps every result in
-`{ ok: true, data } | { ok: false, error }`. Failures are logged by error code
-only; unknown errors become `INTERNAL_ERROR` with a generic message.
+id, main frame, and exact current URL), dispatches per channel, validates every
+payload shape (account id, label, remove confirmation, proxy fields), and wraps
+every result in `{ ok: true, data } | { ok: false, error }`. Failures are logged
+by error code only; unknown errors become `INTERNAL_ERROR` with a generic
+message.
 
 No channel accepts a path, profile directory, shell command, URL, or arbitrary
 JavaScript. The renderer cannot ask Main to run `evaluate` or open a URL.
@@ -242,25 +248,45 @@ auth/QR UI and the prompt reappears.
 `AccountStore` keeps `config/accounts.json`, an array of
 `{ id, label, profileDir, createdAt, lastConnectedAt? }`:
 
-- Reads validate every field and reject a corrupted file with
-  `INTERNAL_ERROR`.
-- `create` generates a UUID, labels it `Account N`, and creates the profile
-  directory.
-- `updateLastConnected` and `remove` rewrite the array.
+- `list`, `getById`, `create`, `rename`, `updateLastConnected`, and `remove`
+  operate on the registry.
+- Every read validates the shape **and** that `profileDir` equals the managed
+  path for that id (`profiles/<id>/chromium-user-data`), so a tampered registry
+  cannot point outside the profile root.
+- A corrupt or invalid registry is renamed to `accounts.json.corrupt-<stamp>`
+  (unique suffix if needed) and treated as empty; the original bytes are never
+  deleted.
+- `create` generates a UUID and the profile directory; labels are trimmed and
+  length/control-character validated.
 - Writes use a temporary file plus `rename` so a crash cannot leave a partial
   JSON file.
 - No cookie, token, password, QR payload, or message content is stored.
 
+### Multi-account manager
+
+`src/main/account-manager.ts` owns account lifecycle:
+
+- One `AccountRuntime` per account: an `AccountController` plus a
+  `BrowserManager` (Playwright persistent context). Runtimes are created lazily
+  on the first `start`/`open`; `list` and `create` never launch a browser.
+- Active browsers are capped (default 3). Exceeding the cap returns
+  `BROWSER_LIMIT_REACHED` before any launch.
+- `create`, `rename`, `start`, `stop`, `open`, `remove`, and `shutdown` are the
+  manager API; `remove` deletes the profile only when `deleteProfile === true`.
+- A view cache fans out `account:status` per account; one account's state never
+  changes another's.
+- `shutdown` stops every running runtime before app quit.
+
 ### Controller
 
-`src/main/account-controller.ts` holds the single-account lifecycle:
+`src/main/account-controller.ts` holds the lifecycle of **one fixed account**
+(`accountId`):
 
 - `getView()` returns a copy of the renderer-safe view (`id`, `label`, `status`,
   `loginState`, `error`, `createdAt`, `lastConnectedAt`). It contains no path.
-- `start()` de-duplicates concurrent calls, creates or loads the first stored
-  account, reads the manual proxy settings, launches the browser (or reuses it),
-  navigates to Telegram Web, sets `waiting_for_login`, and starts the monitor
-  without blocking the IPC response.
+- `start()` de-duplicates concurrent calls, reloads the account metadata, reads
+  the manual proxy settings, launches the browser (or reuses it), navigates to
+  Telegram Web, sets `waiting_for_login`, and starts the monitor.
 - Status transitions: `disconnected → initializing → waiting_for_login /
   authenticating → connected`, with `error` on failure.
 - A navigation failure while the manual proxy is enabled becomes `PROXY_ERROR`;
@@ -268,20 +294,18 @@ auth/QR UI and the prompt reappears.
 - After a successful launch, a navigation/network failure **keeps the browser,
   profile and session** for Retry (ADR-021). A relaunch happens only when the
   proxy configuration changed or the page was closed.
-- On `CONNECTED`, `lastConnectedAt` is persisted.
+- On `CONNECTED`, `lastConnectedAt` is persisted for that account.
 - `stop()` closes the browser and returns to `disconnected`.
-- `remove(deleteProfile)` stops the browser, removes metadata, and deletes the
-  account profile directory only when `deleteProfile === true`.
 - `handleBrowserClosed()` marks the account as `BROWSER_CLOSED` unless the close
   was initiated by `stop()`.
 
 ### IPC, preload, dashboard
 
-The nine channels and one event in §3 are the entire API surface (six account
-channels, three proxy channels). `App.tsx` renders connector/browser/login
-status, the account label, the last connected time, an error alert, the
-Network/Proxy form, and the actions Add Account, Connect, Open Telegram,
-Disconnect, and Remove Account (with a native confirm). It renders no path,
+The 11 channels and one event in §3 are the entire API surface (app info, seven
+account channels, three proxy channels). `App.tsx` renders the account list,
+one card per account (status, browser, login, last connected, error), an Add
+Account field, Rename, Connect/Reconnect, Open Telegram, Disconnect, Remove
+(with a native confirm), and the global Network/Proxy form. It renders no path,
 proxy credential, or session data.
 
 ## 7. Network architecture
@@ -341,9 +365,9 @@ connector; the configured proxy is the only proxy the connector applies.
 
 | Layer | Location | Count at Phase 2 final | What it proves |
 |---|---|---|---|
-| Unit | `tests/unit/` | 18 files / 108 tests | Pure logic: proxy parsing/settings/probe, lock, detector, monitor, store, controller, IPC, paths, windows, errors |
+| Unit | `tests/unit/` | 19 files / 117 tests | Pure logic: proxy parsing/settings/probe, account registry/manager/controller, lock, detector, monitor, IPC, paths, windows, errors |
 | Integration | `tests/integration/` | 2 files / 13 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, saved-settings→Playwright, Telegram HTML fixtures |
-| Electron E2E | `tests/e2e/` | 1 file / 11 tests | Real Electron: security invariants, preload surface, data paths, dashboard, proxy form, immediate enable persistence, proxy persistence + credential protection, Playwright in Main, navigation blocking, CSP, quit |
+| Electron E2E | `tests/e2e/` | 1 file / 13 tests | Real Electron: security invariants, preload surface, data paths, multi-account dashboard/list/create-three, proxy form, immediate enable persistence, credential protection, Playwright in Main, navigation blocking, CSP, quit |
 | Live manual | user-run | 0 run | Real QR/2FA/session/restart through the user's proxy; requires the user |
 
 Commands and environment are recorded in `docs/handoff/RESUME_PROMPT.md`.
@@ -366,20 +390,20 @@ dynamic-import callback (ADR-019).
 |---|---|---|---|---|---|---|---|
 | 1 | Playwright/Chromium bundled with the installer (ADR-007) | `playwright` is a runtime dependency; browsers come from `PLAYWRIGHT_BROWSERS_PATH` in dev | Phase 6 owns packaging; Phase 2 verifies the dev path | Fast iteration; electron-vite externalizes correctly | A fresh machine without the pinned browser fails at launch until `npx playwright install chromium` or the env var is set | Phase 6 must bundle Chromium and set the path | Dev path verified |
 | 2 | System Proxy First + Manual Fallback (ADR-013) | Manual proxy only; no system detection, no fallback (ADR-020) | User's Windows system proxy is unset while local proxies run; automatic detection produced `direct` and a network error | Deterministic, vendor-neutral, testable, no OS changes | User must configure the proxy once; nothing is auto-detected | Proxy UI + persistence + Test Proxy | Unit/integration/E2E; real local proxies verified |
-| 3 | Per-account serialized Task Queue | Single account; `BrowserManager.running` + `start()` promise serialize | Phase 2 is single-account | Simpler state machine | A stop during launch now closes the browser that arrives late, but there is still no queue | Phase 4 queue | Stop-during-launch path fixed in controller; queue not tested |
-| 4 | Account Registry, permissions, audit logger | JSON store + controller only | Later phases | Minimal MVP | No audit trail or policy enforcement yet | Phase 4/5 | Store tested; policy not implemented |
-| 5 | Account view reflects persisted metadata at launch | `getView()` starts at `EMPTY_VIEW`; the stored account is loaded on first `start()` | Task 6 kept view transitions connection-driven | No secret/path exposure | After a restart the dashboard shows "Add Account" even though an account exists; clicking it reconnects the stored account (no duplicate) | UI copy/labeling needs a Phase 3 fix | Initial empty view tested; restart UX not tested |
+| 3 | Per-account serialized Task Queue | `AccountManager` creates one runtime per account (ADR-022); same-account `start()` is serialized by an in-flight promise; max 3 active browsers | Phase 3 needs isolated accounts but no Telegram operations yet | Account isolation, lazy launch, bounded resources | No generic task queue for non-lifecycle operations; remove-during-start race is untested | Phase 4 adds the operation queue | Manager/unit + E2E multi-account tests |
+| 4 | Account Registry, permissions, audit logger | JSON registry + account manager only | Later phases | Minimal MVP | No audit trail or policy enforcement yet | Phase 4/5 | Store/manager tested; policy not implemented |
+| 5 | Account view reflects persisted metadata at launch | Per-account views are initialized from the registry; the manager lists accounts before any browser starts | Phase 3 multi-account UI | Correct account list and labels after restart | Browser runtime state and stored session state are still not separate; intentional close becomes `BROWSER_CLOSED` | Follow-up state model | Store/manager/E2E tested; close semantics not |
 | 6 | Named Pipe MCP bridge | Not implemented | Phase 5 | — | No agent integration yet | Future | — |
 | 7 | System tray / close-to-tray (optional) | Not implemented; closing the window quits | Phase 2 scope | Simpler lifecycle | None for MVP | — | Quit-on-last-window tested |
 | 8 | `web.telegram.org` start URL | `/k/` only (ADR-011) | Phase 0 evidence | Stable selector set | Other variants unsupported | Phase 3+ | URL validator tested |
-| 9 | IPC handlers as one function per version | Typed handler map, per-channel dispatch, validated remove payload | Task 7 added multiple channels and one payload | Type safety and explicit validation | More code in the router | — | IPC unit + E2E tested |
+| 9 | IPC handlers as one function per version | Typed handler map, per-channel dispatch, validated account-id/label/remove/proxy payloads | Task 7 added multiple channels; Phase 3 added account ids | Type safety and explicit validation | More code in the router | — | IPC unit + E2E tested |
 | 10 | No test-only IPC surface | E2E loads Playwright through `process.mainModule` | Avoid a self-test channel in production | Minimal preload surface | `process.mainModule` is a deprecated Node API; test-only | Replace if Electron Main moves to ESM | E2E passes |
 
 ## 10. Security invariants verified by tests
 
 - The renderer has no `require`, `process`, `Buffer`, `module`, or
   `ipcRenderer`; only `window.api` exists (E2E).
-- Only nine allowlisted IPC channels are registered; untrusted senders and
+- Only eleven allowlisted IPC channels are registered; untrusted senders and
   foreign URLs get `PERMISSION_DENIED` (unit).
 - IPC payloads are validated; a non-boolean `deleteProfile` or malformed proxy
   payload gets `INVALID_ARGUMENT` and never reaches the services (unit + E2E).

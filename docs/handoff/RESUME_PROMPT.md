@@ -36,13 +36,14 @@ login, Connected status, browser close/reopen, and session persistence across
 browser restart PASS (successful proxy: SOCKS5 `127.0.0.1:12334`). Deferred and
 recorded as NOT TESTED: Electron full restart (user cleared the session first),
 Windows full restart, proxy loss/recovery, session revoke, and 10808
-troubleshooting. QR-vs-phone and 2FA were not recorded.
+troubleshooting.
 
-**Phase 3 — Multi-account Management is active.** Start from
-`TASKS/04_MULTI_ACCOUNT.md`. Preserve the current BrowserManager and manual proxy
-architecture; one profile per account; independent sessions; no shared
-cookies/storage. MCP and Telegram operations are out of scope. Do not re-run
-Phase 2 deferred tests unless the user asks. Phase 4+ is not authorized.
+**Phase 3 — Multi-account Management is in progress.** Automated implementation
+is committed (`d1107bc`): registry, per-account runtime/controller,
+`AccountManager` with lazy launch and max 3 browsers, multi-account IPC/preload/
+dashboard, and tests (117 unit, 13 integration, 13 E2E). Remaining: a live
+three-account isolation test and the Phase 3 report. Do not re-run Phase 2
+deferred tests unless asked. Phase 4 (Telegram operations/MCP) is not authorized.
 
 Proxy rules (permanent): the connector uses only the user's saved manual proxy
 (SOCKS5/HTTP, host, port, optional credentials). There is no system-proxy

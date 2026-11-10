@@ -47,16 +47,16 @@ implied affiliation.
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
 | 2 — Browser Manager, proxy, single account login | **COMPLETE FOR MVP** — deferred verifications accepted | `docs/phase2/PHASE2_REPORT.md` (§9.1); Tasks 1–8 and proxy fixes committed |
-| 3 — Multi-account management | In progress | `TASKS/04_MULTI_ACCOUNT.md` |
+| 3 — Multi-account management | In progress — automated implementation complete; live three-account test pending | `TASKS/04_MULTI_ACCOUNT.md`, `docs/phase3/PHASE3_PLAN.md`, commit `d1107bc` |
 | 4+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 3 — Multi-account Management. Phase 2 is closed for MVP with accepted
-deferred verifications. Start by reading `TASKS/04_MULTI_ACCOUNT.md`; the goal is
-at least three isolated account profiles with independent sessions, lazy browser
-launch, and no shared cookies/storage. Do not start Phase 4 (Telegram
-operations/MCP) or Phase 5.
+Phase 3 — Multi-account Management. Automated implementation is complete:
+account registry, per-account controller/runtime, `AccountManager`, max-active
+browser limit, multi-account IPC/preload/dashboard, and tests. Remaining: a live
+test with three real accounts to confirm independent sessions (and a Phase 3
+report). Phase 4 (Telegram operations/MCP) is not authorized.
 
 ## Session-Independent Development
 
@@ -158,6 +158,14 @@ code, and test evidence win.
   Windows restart, proxy loss/recovery, session revoke, and 10808
   troubleshooting are **NOT TESTED** by user decision. QR-vs-phone and 2FA were
   not recorded. See `docs/phase2/PHASE2_REPORT.md` §9.1.
+- Phase 3 (2026-11-10, commit `d1107bc`): multi-account registry and manager.
+  `AccountStore` now lists/gets/renames accounts, validates profile paths, and
+  backs up/recoveries a corrupt registry. `AccountManager` owns one lazy
+  `AccountController` + `BrowserManager` runtime per account, caps active
+  browsers at 3, serializes same-account starts, and removes profiles only with
+  explicit confirmation. IPC/preload/dashboard moved to a multi-account surface.
+  Automated: 117 unit, 13 integration, 13 E2E; `npm run check` passes.
+  Live three-account login is **Pending**.
 - Known architecture gap: the browser close reason is not modelled. An
   intentional user close currently becomes a `BROWSER_CLOSED` error; a crash is
   only logged. Browser runtime state and stored session state are not yet
@@ -184,6 +192,9 @@ code, and test evidence win.
 | `582c01a` | Task 8 automated verification tests |
 | `67cb669` | Manual proxy configuration, secure credentials, browser preservation |
 | `51714cf` | Persist the Enable toggle and apply the saved proxy to Chromium |
+| `8126928` | Close Phase 2 for MVP with accepted deferred verifications |
+| `51d4ccc` | Phase 3 multi-account plan |
+| `d1107bc` | Multi-account manager, registry, IPC and dashboard |
 
 ## Key Documents
 
@@ -191,10 +202,12 @@ code, and test evidence win.
 - `ARCHITECTURE.md`, `ARCHITECTURE_DECISIONS.md` (ADR-020 manual proxy,
   ADR-021 browser preservation), `SECURITY_THREAT_MODEL.md`.
 - `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` — architecture actually
-  implemented through Phase 2 Task 8, with divergences and limits.
-- `docs/phase2/PHASE2_REPORT.md` — final Phase 2 verification and the pending
-  live checklist.
+  implemented through Phase 3, with divergences and limits.
+- `docs/phase2/PHASE2_REPORT.md` — final Phase 2 verification and accepted
+  deferred checks.
+- `docs/phase3/PHASE3_PLAN.md` — active Phase 3 plan.
 - `TASKS/00_DISCOVERY_AND_SPIKE.md`, `TASKS/01_REPO_FOUNDATION.md`,
-  `TASKS/02_DESKTOP_SHELL.md`, `TASKS/03_BROWSER_LOGIN_SESSION.md`.
+  `TASKS/02_DESKTOP_SHELL.md`, `TASKS/03_BROWSER_LOGIN_SESSION.md`,
+  `TASKS/04_MULTI_ACCOUNT.md`.
 - `docs/handoff/` — cross-session state.
-- `docs/phase2/PHASE2_PLAN.md` — active plan.
+- `docs/phase2/PHASE2_PLAN.md` — Phase 2 plan (complete).

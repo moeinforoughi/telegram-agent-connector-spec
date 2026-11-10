@@ -133,3 +133,10 @@
 **محدودیت:** Retry خودکار در Loop نیست؛ کاربر باید دکمه Reconnect/Retry را بزند. Crash شدن Page فقط Log می‌شود و Context را نمی‌بندد.
 **اثر:** `src/main/account-controller.ts` و رفتار Retry در UI.
 **وضعیت تست:** Unit برای Navigation Error/Retry/Proxy Change و Integration برای باز ماندن Process و Page پس از خطای Proxy.
+
+## ADR-022 — Multi-account Runtime per Account
+**تصمیم:** `AccountManager` در Main برای هر Account یک Runtime مستقل شامل یک `AccountController` و یک `BrowserManager`/Playwright Context بسازد. Runtimeها Lazy ساخته شوند، سقف Browser فعال (پیش‌فرض ۳) داشته باشند، و برای هر Account فقط یک Runtime وجود داشته باشد. Registry فقط Metadata نگه دارد؛ Proxy تنظیمات سراسری دستی باقی بماند. IPC/Preload/Dashboard روی Account ID کار کنند و View هیچ Path/Credential نداشته باشد.
+**دلیل:** جداسازی کامل Cookie/Storage/Session هر Account؛ یک Browser Context برای هر Profile؛ جلوگیری از یک Controller غول‌آسا و حفظ معماری Modular Monolith.
+**محدودیت:** Proxy در Phase 3 سراسری است (Per-account Proxy خارج از Scope)؛ Queue عمومی عملیات غیر-Lifecycle در Phase 4 می‌آید؛ سه Chromium هم‌زمان منابع مصرف می‌کنند؛ حذف Account در حین Start می‌تواند با Stop/Relaunch تلاقی کند و باید در تست‌های بعدی پوشش داده شود.
+**اثر:** `src/core/account/account-store.ts`, `src/main/account-controller.ts`, `src/main/account-manager.ts`, `src/main/ipc-router.ts`, `src/preload/index.ts`, `src/renderer/src/App.tsx`.
+**وضعیت تست:** Registry (117 Unit شامل 3 Account/Path/Recovery)، Manager (Lazy/Limit/Isolation/Serialize/Remove/Shutdown)، IPC و E2E چنداکانتی. لاگین واقعی سه Account هنوز Pending است.

@@ -248,3 +248,25 @@
 - Phase 3 (Multi-account Management) started from `TASKS/04_MULTI_ACCOUNT.md`.
 - No product code changed in this step; documentation commit follows. Check
   `git log -1`.
+
+## 2026-11-10 — Phase 3 multi-account implementation
+
+- Phase 2 closed for MVP (`8126928`) with accepted deferred verifications.
+- Phase 3 plan committed (`51d4ccc`).
+- Phase 3 implementation committed (`d1107bc`):
+  - `AccountStore`: list/get/rename, atomic writes, label validation,
+    managed-profile-path validation, corrupt-registry backup + empty recovery.
+  - `AccountController`: fixed `accountId`, no account creation/removal; proxy,
+    retry, and browser preservation preserved.
+  - `AccountManager`: lazy per-account runtimes, max 3 active browsers,
+    `BROWSER_LIMIT_REACHED`, per-account serialization, view isolation, remove
+    with explicit profile deletion, shutdown.
+  - IPC/preload/renderer: 11 channels with account ids; multi-account dashboard
+    with Add/Rename/Connect/Open/Disconnect/Remove; global manual proxy card.
+  - Tests: three accounts, isolation, lazy launch, max limit, concurrent start,
+    remove, corrupt recovery, path traversal, multi-account E2E.
+- Verification: `npm run check` PASS — 117 unit, 13 integration, 13 E2E, build,
+  typecheck, lint, format.
+- Remaining: live three-real-account isolation test and
+  `docs/phase3/PHASE3_REPORT.md`. Phase 4 not started.
+- Documentation commit follows; check `git log -1`.
