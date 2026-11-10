@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (Phase 2, Task 7 in progress)
+Last updated: 2026-11-10 (Phase 2, Task 7 complete; Task 8 awaiting approval)
 
 ## Project Goal
 
@@ -17,7 +17,8 @@ implied affiliation.
 - Modular monolith: Electron Main owns Core and the Browser Manager.
 - Renderer is UI only; Preload exposes a small validated API.
 - Phase 2 adds: BrowserManager (Playwright persistent context), proxy resolver,
-  Telegram login detector/monitor, account store/controller, and account IPC.
+  Telegram login detector/monitor, account store/controller, account IPC, and a
+  single-account dashboard.
 - MCP Server and Named Pipe bridge are future phases.
 - One browser context per profile; account operations serialized.
 - Browsers are lazy-started; the app does not open every account at launch.
@@ -45,13 +46,14 @@ implied affiliation.
 |---|---|---|
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
-| 2 — Browser Manager, proxy, single account login | In progress | `docs/phase2/PHASE2_PLAN.md`; tasks 1–6 committed, task 7 uncommitted |
+| 2 — Browser Manager, proxy, single account login | In progress | `docs/phase2/PHASE2_PLAN.md`; Tasks 1–7 committed, Task 8 pending |
 | 3+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 2, Task 7 — IPC, preload and renderer. The wiring exists in the working
-tree but is not verified or committed. See `docs/handoff/LATEST_HANDOFF.md`.
+Phase 2, Task 8 — verification and Phase 2 report. Not started; it includes the
+live QR/2FA/restart checklist that needs the user and a real Telegram account.
+Do not start Phase 3.
 
 ## Approved Decisions
 
@@ -78,23 +80,21 @@ tree but is not verified or committed. See `docs/handoff/LATEST_HANDOFF.md`.
 - Phase 1 hardened Electron (context isolation, sandbox, no node integration,
   allowlisted IPC, sender validation, strict production CSP, permission denial,
   navigation/window blocking).
-- Phase 2 Tasks 1–6 are committed: `22789a8`, `b644d43`, `99da896`, `3e67eab`,
-  `713eb0d`, `cce43eb`. They add the proxy resolver, profile paths/lock,
-  BrowserManager + Playwright launcher, Telegram selector map and login
-  monitor, and the account store/controller.
-- Task 7 wiring (account IPC channels, preload bridge, single-account dashboard)
-  exists only in the working tree. It is not committed.
-- Test status at this checkpoint (2026-11-10):
-  - Unit: 103/103 pass (`npx vitest run tests/unit`).
-  - Integration: 9/9 pass with real Chromium (`npx vitest run tests/integration`).
-  - E2E: 7/8 pass; `loads Playwright and launches a browser from the Electron
-    main process` fails because dynamic `import()` is unavailable inside
-    Playwright's `app.evaluate`.
-  - `npx tsc --noEmit` fails on the untracked `src/main/browser-self-test.ts`,
-    which imports a non-existent `BrowserSelfTestResult` from `src/shared/ipc`.
-    Nothing imports that file.
-  - `npx eslint .` fails on one type-import annotation in `tests/e2e/app.test.ts`.
-  - `npx prettier --check .` reports three unformatted files.
+- Phase 2 Tasks 1–7 are committed: `22789a8`, `b644d43`, `99da896`, `3e67eab`,
+  `713eb0d`, `cce43eb`, `07f20d9`. They add the proxy resolver, profile
+  paths/lock, BrowserManager + Playwright launcher, Telegram selector map and
+  login monitor, account store/controller, and the account IPC/preload/renderer
+  wiring.
+- Task 7 removed the abandoned untracked `src/main/browser-self-test.ts` (dead
+  code, imported a non-existent type, referenced by nothing). The E2E
+  Playwright-in-main test now loads Playwright through
+  `process.mainModule.require(<appPath>/node_modules/playwright)` because
+  `app.evaluate` has no dynamic-import callback.
+- Full verification at Task 7 completion (2026-11-10): `npm run check` passed —
+  typecheck, lint, format:check, 103 unit tests, 9 integration tests (real
+  Chromium), build, and 8 E2E tests.
+- The account renderer never receives profile paths or credentials;
+  `AccountView` carries status metadata only.
 - Playwright browsers for the root package are not in the default cache; the
   Phase 0 download lives in gitignored `spike/.browsers` (Chromium 1254). Use
   `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` for local integration/E2E tests.
@@ -102,6 +102,8 @@ tree but is not verified or committed. See `docs/handoff/LATEST_HANDOFF.md`.
   Electron launch fails with `bad option: --remote-debugging-port=0`. Unset it
   (for example `Remove-Item Env:ELECTRON_RUN_AS_NODE`) before E2E runs; this is
   an environment artifact, not an application bug.
+- Live QR/2FA/session-restart/proxy-loss checks have not been run in Phase 2 and
+  require the user.
 
 ## Important Commits
 
@@ -116,6 +118,8 @@ tree but is not verified or committed. See `docs/handoff/LATEST_HANDOFF.md`.
 | `3e67eab` | BrowserManager, Playwright launcher, integration tests |
 | `713eb0d` | Telegram selectors, login detector and monitor |
 | `cce43eb` | Account store and controller |
+| `7c51c03` | Reconcile handoff with the real repository state |
+| `07f20d9` | Account IPC, preload bridge and single-account dashboard |
 
 ## Key Documents
 

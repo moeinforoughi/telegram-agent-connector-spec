@@ -52,3 +52,29 @@
 - Decision pending from the user: delete the orphan `browser-self-test.ts`
   (recommended) or adopt it behind a test-only path.
 - No product code changed in this session yet; no commit made by this session.
+
+## 2026-11-10 — Phase 2 Task 7 completion
+
+- User approved: delete the orphan file and complete Task 7 only (no Phase 3).
+- Deleted untracked `src/main/browser-self-test.ts` after confirming it had no
+  project references. No self-test IPC channel was added; the preload surface
+  stays minimal.
+- Fixed the E2E Playwright-in-main test: `app.evaluate` cannot use dynamic
+  `import()`, so the test requires
+  `<appPath>/node_modules/playwright` through `process.mainModule`.
+- Ran `prettier --write` on the three unformatted files.
+- Verification (with `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` and
+  `ELECTRON_RUN_AS_NODE` unset):
+  - `npx tsc --noEmit` → PASS.
+  - `npx eslint .` → PASS.
+  - `npx prettier --check .` → PASS.
+  - `npx vitest run tests/unit` → 103/103 PASS.
+  - `npx vitest run tests/integration` → 9/9 PASS (real Chromium).
+  - `npm run test:e2e` → 8/8 PASS (build included).
+  - `npm run check` → PASS (exit 0).
+- Secret/temp review of the diff: no secrets, profiles, browser data, logs, or
+  temporary files.
+- Commit `07f20d9` — `feat(account): wire single-account ipc, preload and
+  dashboard` (10 files, +481/−77).
+- Next: Task 8 (verification + Phase 2 report + live manual checklist) awaits
+  explicit user approval. No Phase 3 work started.
