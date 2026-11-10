@@ -1,0 +1,22 @@
+{
+  "name": "telegram-agent-connector-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase 0 feasibility spike. Not part of the shipped application.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "probe": "npm run build && node dist/probe.js",
+    "login": "npm run build && node dist/login.js",
+    "verify": "npm run build && node dist/verify.js",
+    "locktest": "npm run build && node dist/locktest.js",
+    "check:logs": "node scripts/check-logs.mjs",
+    "check": "npm run typecheck && npm run check:logs"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "playwright": "1.65.0",
+    "typescript": "5.9.3"
+  }
+}
