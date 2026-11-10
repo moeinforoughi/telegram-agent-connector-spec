@@ -93,3 +93,26 @@
   for the new governance stage.
 - No product code changed in this step; commit hash recorded in the next
   handoff update.
+
+## 2026-11-10 — Phase 2 architecture audit
+
+- Commit `0ac40fe` recorded the Session-Independent Development rules and
+  governance state updates.
+- Audited Phase 0 through Phase 2 Task 7 against `ARCHITECTURE.md` and
+  `ARCHITECTURE_DECISIONS.md`; checked every source file, build/test config, and
+  the three recent commits.
+- Added `docs/architecture/IMPLEMENTED_ARCHITECTURE.md`: runtime topology,
+  component map, Electron/preload/IPC security, BrowserManager + profile
+  layout/lock, Telegram selectors/login monitor, account store/controller, proxy
+  resolution and Windows registry reader, test architecture, divergences with
+  reasons and limits, verified security invariants, environment facts.
+- Added ADR-015 (Playwright runtime dependency + lazy import), ADR-016 (account
+  IPC model and path-free view), ADR-017 (app-level profile lock), ADR-018
+  (proxy resolution order/validation/redaction), ADR-019 (E2E Playwright loading
+  and environment sanitization).
+- Marked `ARCHITECTURE.md` as the target design and pointed it to the
+  implemented-architecture document; corrected the start URL to `/k/`.
+- Recorded these findings for Task 8: `ELECTRON_RUN_AS_NODE` is inherited from
+  the DSH shell only (not User/Machine), `spike/.browsers` matches Playwright's
+  pinned Chromium revision 1254, and the default Playwright cache is absent.
+- No product code changed in this step.

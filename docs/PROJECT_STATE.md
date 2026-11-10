@@ -130,11 +130,14 @@ code, and test evidence win.
 | `cce43eb` | Account store and controller |
 | `7c51c03` | Reconcile handoff with the real repository state |
 | `07f20d9` | Account IPC, preload bridge and single-account dashboard |
+| `0ac40fe` | Permanent session-independent development rules |
 
 ## Key Documents
 
-- `AGENTS.md` — permanent engineering rules.
+- `AGENTS.md` — permanent engineering rules, including session independence.
 - `ARCHITECTURE.md`, `ARCHITECTURE_DECISIONS.md`, `SECURITY_THREAT_MODEL.md`.
+- `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` — architecture actually
+  implemented through Phase 2 Task 7, with divergences and limits.
 - `TASKS/00_DISCOVERY_AND_SPIKE.md`, `TASKS/01_REPO_FOUNDATION.md`,
   `TASKS/02_DESKTOP_SHELL.md`, `TASKS/03_BROWSER_LOGIN_SESSION.md`.
 - `docs/handoff/` — cross-session state.

@@ -16,16 +16,18 @@ Task 7 is complete and committed as `07f20d9`.
 In Progress
 
 ## Last Verified Commit
-07f20d9 `feat(account): wire single-account ipc, preload and dashboard`.
-The same commit passed `npm run check` before it was created.
+`0ac40fe` (governance docs). The last code commit is `07f20d9`, which passed
+full `npm run check` before commit; the tree at `07f20d9` was re-verified after
+the Task 7 docs commit.
 
 ## Git Branch
 main
 
 ## Working Tree
-At the last code commit (`07f20d9`) the tree was clean for code. This session
-adds the permanent governance rules and state updates; no product code changes
-are pending at this checkpoint.
+Clean at `0ac40fe`. This checkpoint adds the architecture audit documents:
+`docs/architecture/IMPLEMENTED_ARCHITECTURE.md`, ADR-015…019 in
+`ARCHITECTURE_DECISIONS.md`, and a target-vs-implemented banner in
+`ARCHITECTURE.md`.
 
 ## Completed Work
 - Phase 0 and Phase 1 are complete and committed.
@@ -54,7 +56,11 @@ are pending at this checkpoint.
     `<appPath>/node_modules/playwright` through the Electron main module.
 - Task 8 governance step — Session-Independent Development is now a permanent
   rule in `AGENTS.md` (pre-session checks, per-task recording, end-of-session
-  checklist, Source of Truth, mandatory handoff content).
+  checklist, Source of Truth, mandatory handoff content); commit `0ac40fe`.
+- Task 8 architecture audit — implemented architecture documented, ADR-015…019
+  added for the real decisions (Playwright runtime dependency/lazy import,
+  account IPC model, profile lock, proxy resolution order, E2E Playwright
+  loading), and the target `ARCHITECTURE.md` now points to the audit.
 
 ## Test Results (2026-11-10, before commit `07f20d9`)
 
@@ -111,9 +117,10 @@ Telegram account.
 - Do not start Phase 3 without explicit approval.
 
 ## Exact Next Action
-Perform the Phase 0 → Task 7 architecture audit and write
-`docs/architecture/IMPLEMENTED_ARCHITECTURE.md`, then run the automated Task 8
-verification and prepare the live manual checklist. Phase 3 is not authorized.
+Run the automated Task 8 verification: sanitize `ELECTRON_RUN_AS_NODE` in the
+E2E launcher, add the proxy-loss/recovery integration test, run `npm run check`,
+then write `docs/phase2/PHASE2_REPORT.md` and the live manual checklist.
+Phase 3 is not authorized.
 
 ## Resume Instructions
 Read `AGENTS.md`, `docs/PROJECT_STATE.md`, this file,

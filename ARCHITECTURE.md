@@ -1,5 +1,9 @@
 # Architecture
 
+> **وضعیت:** این سند معماری هدف است. معماری واقعیِ پیاده‌شده تا Phase 2 Task 7
+> در `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` ثبت شده است. در صورت
+> مغایرت، کد واقعی و آن سند مرجع هستند.
+
 ## 1. سبک معماری
 
 **Modular Monolith با یک Desktop Host محلی**. در MVP هیچ Microservice، Docker، Remote Server، Redis، Message Broker یا دیتابیس سنگین نداریم.
@@ -40,7 +44,7 @@
 
 ### Telegram Web Adapter
 - فقط UI Automation با Locatorهای قابل مشاهده.
-- آدرس شروع `https://web.telegram.org/`.
+- آدرس شروع `https://web.telegram.org/k/` (WebZ؛ ADR-011).
 - Selectorها در یک لایه متمرکز.
 - تشخیص حالت Login، QR، Chat List و خطا.
 - هیچ API داخلی یا Network Endpoint خصوصی فراخوانی نشود.
