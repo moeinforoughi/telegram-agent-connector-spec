@@ -59,10 +59,12 @@
 - Node.js `26.13.0` LTS
 - Electron `45.2.3`
 - Playwright `1.65.0`
-- Chromium `158.0.8127.18` (Chrome for Testing، revision 1254)
+- Chromium `158.0.8127.18` (Chrome for Testing، revision 1254؛ مخصوص Playwright)
 - MCP TypeScript SDK `1.32.2`
 - TypeScript `5.9.3`
 - Zod `4.6.7`
+**Runtimeهای واقعی Phase 1:** Electron 45.2.3 با Node داخلی `24.22.2` و Chromium داخلی `156.0.8078.80` اجرا می‌شود. ابزار Build/Test از Node `26.13.0` استفاده می‌کند. Chrome for Testing `158.0.8127.18` مخصوص Playwright/Phase 2 است و نباید با Chromium داخل Electron اشتباه شود.
+**سازگاری Phase 1 (بررسی‌شده):** React 19.3.1؛ Vite 8.3.7؛ electron-vite 6.0.0؛ @vitejs/plugin-react 6.3.0؛ Vitest 5.1.0؛ ESLint 10.14.0؛ typescript-eslint 8.72.2؛ Prettier 3.9.10؛ `@types/node` 24.19.2 (هم‌راستا با Node داخلی Electron 45). نصب، Typecheck، Lint، Build و تست موفق.
 **قانون:** نسخه‌ها و Lockfile Commit شوند و بدون دلیل فنی تغییر نکنند. سازگاری Peer Dependency در Phase 1 بررسی و ثبت شد.
 **هزینه/ریسک:** ارتقای Playwright/Chromium می‌تواند روی Profile اثر بگذارد؛ ابتدا روی Profile آزمایشی تست شود.
 
@@ -76,3 +78,4 @@
 **تصمیم:** Electron Main از Node Runtime داخلی Electron استفاده کند. MCP Bridge در زمان بسته‌بندی یک Node.js مستقل و Pin شده همراه برنامه داشته باشد.
 **دلیل:** جلوگیری از اشتباه بین Runtime دسکتاپ و Runtime پردازه Bridge و حفظ رفتار قابل تکرار.
 **قانون:** Playwright و Chromium نسخه سازگار و Pin شده داشته باشند و Chromium همراه Installer توزیع شود؛ برنامه در اولین اجرا Browser دانلود نکند.
+**وضعیت Phase 1:** Electron Main با Node داخلی `24.22.2` اجرا می‌شود؛ ابزار Build/Test از Node `26.13.0` استفاده می‌کند. Chromium داخل Electron (`156.0.8078.80`) فقط Renderer برنامه است؛ Browser Manager در Phase 2 از Playwright و Chromium Pin‌شده استفاده خواهد کرد. MCP Bridge در Phase 5 با Node مستقل Pin‌شده بسته‌بندی می‌شود.

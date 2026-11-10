@@ -2,7 +2,7 @@
   "package_name": "telegram-agent-connector-spec",
   "package_type": "project-specification-and-agent-instructions",
   "language": "fa",
-  "contains_source_implementation": false,
+  "contains_source_implementation": true,
   "primary_target": "Windows 11 x64",
   "architecture": "Electron + React + TypeScript + Playwright + Custom MCP STDIO",
   "telegram_api_credentials_required": false,

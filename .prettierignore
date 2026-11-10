@@ -1,0 +1,6 @@
+node_modules
+out
+coverage
+spike
+package-lock.json
+*.md
