@@ -16,23 +16,34 @@ let userDataDir: string | undefined;
 
 async function launchApp(): Promise<{ app: ElectronApplication; page: Page }> {
   userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "tac-e2e-"));
-  const browsersPath = path.join(projectRoot, "spike", ".browsers");
   const launched = await electron.launch({
     args: [projectRoot],
     cwd: projectRoot,
-    env: {
-      ...process.env,
-      CONNECTOR_USER_DATA_DIR: userDataDir,
-      NODE_ENV: "test",
-      ...(fs.existsSync(browsersPath) && !process.env.PLAYWRIGHT_BROWSERS_PATH
-        ? { PLAYWRIGHT_BROWSERS_PATH: browsersPath }
-        : {}),
-    },
+    env: launchEnv(userDataDir),
   });
   app = launched;
   page = await launched.firstWindow();
   await page.waitForLoadState("domcontentloaded");
   return { app: launched, page };
+}
+
+function launchEnv(userDataDir: string): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) env[key] = value;
+  }
+  env.CONNECTOR_USER_DATA_DIR = userDataDir;
+  env.NODE_ENV = "test";
+
+  const browsersPath = path.join(projectRoot, "spike", ".browsers");
+  if (!env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync(browsersPath)) {
+    env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
+  }
+
+  // Electron must boot as Electron, not as plain Node. The DSH shell exports
+  // this for its own tooling; it must never leak into the launched app.
+  delete env.ELECTRON_RUN_AS_NODE;
+  return env;
 }
 
 afterEach(async () => {

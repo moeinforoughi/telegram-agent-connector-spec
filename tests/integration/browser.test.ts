@@ -1,5 +1,7 @@
+import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { BrowserManager } from "../../src/core/browser/browser-manager";
 import { createPlaywrightLauncher } from "../../src/core/browser/browser-factory";
@@ -7,7 +9,9 @@ import { browserTestPaths } from "./browser-env";
 
 type Server = { port: number; requests: string[]; close: () => Promise<void> };
 
-function startProxy(options: { username?: string; password?: string } = {}): Promise<Server> {
+function startProxy(
+  options: { port?: number; username?: string; password?: string } = {},
+): Promise<Server> {
   const requests: string[] = [];
   const expected =
     options.username && options.password
@@ -26,13 +30,25 @@ function startProxy(options: { username?: string; password?: string } = {}): Pro
   });
 
   return new Promise((resolve) => {
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(options.port ?? 0, "127.0.0.1", () => {
       const { port } = server.address() as AddressInfo;
       resolve({
         port,
         requests,
         close: () => new Promise((done) => server.close(() => done())),
       });
+    });
+  });
+}
+
+/** Reserves a port and releases it so a proxy can start on it later. */
+function reservePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address() as AddressInfo;
+      server.close(() => resolve(port));
     });
   });
 }
@@ -151,6 +167,49 @@ describe("real Chromium", () => {
 
     expect(await page.locator("h1").textContent()).toBe("direct target");
     expect(proxy.requests).toHaveLength(0);
+    await manager.close();
+  });
+
+  it("replaces a stale lock and keeps the profile intact", async () => {
+    const { profileDir, lockPath } = browserTestPaths();
+    fs.mkdirSync(profileDir, { recursive: true });
+    const sentinel = path.join(profileDir, "session-sentinel.txt");
+    fs.writeFileSync(sentinel, "keep-me");
+    fs.writeFileSync(
+      lockPath,
+      JSON.stringify({ pid: 999_999, createdAt: new Date(0).toISOString() }),
+    );
+
+    const manager = new BrowserManager({ launcher: createPlaywrightLauncher() });
+    await manager.launch({ profileDir, lockPath });
+
+    expect(fs.existsSync(sentinel)).toBe(true);
+    expect(fs.readFileSync(sentinel, "utf8")).toBe("keep-me");
+    expect((JSON.parse(fs.readFileSync(lockPath, "utf8")) as { pid: number }).pid).toBe(
+      process.pid,
+    );
+    await manager.close();
+  });
+
+  it("fails while the proxy is down and recovers when it returns", async () => {
+    const port = await reservePort();
+    const { profileDir, lockPath } = browserTestPaths();
+    const manager = new BrowserManager({ launcher: createPlaywrightLauncher() });
+    const page = await manager.launch({
+      profileDir,
+      lockPath,
+      proxy: { server: `http://127.0.0.1:${port}` },
+    });
+
+    await expect(page.goto("http://proxy-target.invalid/")).rejects.toThrow();
+
+    const proxy = track(await startProxy({ port }));
+    // Use a fresh page: the failed navigation is still settling on chrome-error.
+    const recovered = await page.context().newPage();
+    await recovered.goto("http://proxy-target.invalid/");
+
+    expect(await recovered.locator("h1").textContent()).toBe("via proxy");
+    expect(proxy.requests).toContain("http://proxy-target.invalid/");
     await manager.close();
   });
 });
