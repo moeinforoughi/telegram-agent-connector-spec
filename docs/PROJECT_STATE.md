@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (Phase 2, Task 7 complete; Task 8 awaiting approval)
+Last updated: 2026-11-10 (Phase 2, Task 8 in progress: governance + audit)
 
 ## Project Goal
 
@@ -46,14 +46,24 @@ implied affiliation.
 |---|---|---|
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
-| 2 — Browser Manager, proxy, single account login | In progress | `docs/phase2/PHASE2_PLAN.md`; Tasks 1–7 committed, Task 8 pending |
+| 2 — Browser Manager, proxy, single account login | In progress | `docs/phase2/PHASE2_PLAN.md`; Tasks 1–7 committed, Task 8 in progress |
 | 3+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 2, Task 8 — verification and Phase 2 report. Not started; it includes the
-live QR/2FA/restart checklist that needs the user and a real Telegram account.
+Phase 2, Task 8 — verification and Phase 2 report. In progress: governance
+update and architecture audit first, then automated verification, then the live
+QR/2FA/restart checklist that needs the user and a real Telegram account.
 Do not start Phase 3.
+
+## Session-Independent Development
+
+Permanent rule recorded in `AGENTS.md`: development state must live in the
+repository, never only in an agent's memory or the current chat. Every session
+starts by reading `AGENTS.md`, this file, `docs/handoff/LATEST_HANDOFF.md`, the
+active task, and by inspecting Git and the working tree. Every logical
+checkpoint updates the handoff files. When chat, docs, and code disagree, Git,
+code, and test evidence win.
 
 ## Approved Decisions
 

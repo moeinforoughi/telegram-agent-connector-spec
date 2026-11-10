@@ -23,6 +23,9 @@ Before changing anything:
     run the available tests and record the exact commands and results.
 11. Do not start a later phase without explicit user approval.
 12. Do not push, reset, or delete user changes.
+13. Follow the permanent Session-Independent Development rules in `AGENTS.md`:
+    record every important decision, limitation and test result in the
+    repository; never keep development state only in chat.
 
 Test commands:
 

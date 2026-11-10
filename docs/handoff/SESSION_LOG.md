@@ -78,3 +78,18 @@
   dashboard` (10 files, +481/−77).
 - Next: Task 8 (verification + Phase 2 report + live manual checklist) awaits
   explicit user approval. No Phase 3 work started.
+
+## 2026-11-10 — Phase 2 Task 8 governance step
+
+- User authorized Task 8 plus a permanent governance update; Phase 3 remains
+  forbidden.
+- Verified repository truth: `main` at `bcfda54`, working tree clean, commits
+  `7c51c03`, `07f20d9`, `bcfda54` present and in order.
+- Added the permanent Session-Independent Development rules to `AGENTS.md`:
+  pre-session reading/Git checks, per-task recording, end-of-session handoff
+  checklist, Source of Truth rule, and the state-file references.
+- Extended Definition of Done to require updated state/handoff files.
+- Updated `docs/PROJECT_STATE.md`, `LATEST_HANDOFF.md` and `RESUME_PROMPT.md`
+  for the new governance stage.
+- No product code changed in this step; commit hash recorded in the next
+  handoff update.
