@@ -33,3 +33,13 @@ Priority: P1 | Depends on: TASK 03, TASK 04 | Commit: `feat(telegram): add safe 
 
 ## Acceptance
 عملیات فقط وقتی موفق اعلام شوند که UI نتیجه را تأیید کرده باشد.
+
+## Phase 4 Mapping (2026-11-10)
+- Plan: `docs/phase4/PHASE4_PLAN.md`.
+- User-approved Phase 4 extends the MVP scope to **bounded, local, read-only**
+  chat/message reading with the two preserved sessions.
+- Send/Reply/Delete/Edit/Forward are **not** implemented unless the user gives
+  explicit approval for that step; read-only work comes first.
+- MCP remains Phase 5; no LLM processing of message content.
+- The two existing profiles/sessions must never be deleted or reset during
+  Phase 4.
