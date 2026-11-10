@@ -36,7 +36,9 @@ describe("login detection against local fixtures", () => {
     const detection = await detectLoginState(createPlaywrightProbe(page));
 
     expect(detection.state).toBe("CONNECTED");
-    expect(detection.evidence).toContain("chatItems:#chatlist-container .chatlist-chat:3");
+    expect(detection.evidence).toContain(
+      "chatItems:#chatlist-container .chatlist-chat[data-peer-id]:3",
+    );
     await page.close();
   });
 

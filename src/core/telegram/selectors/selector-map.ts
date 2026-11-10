@@ -1,6 +1,15 @@
 /**
  * All Telegram Web selectors live here. The DOM is not a stable contract; a
  * missing or restructured UI must produce TELEGRAM_UI_CHANGED, not guesswork.
+ *
+ * The Phase 4 read-only audit (2026-11-10) confirmed:
+ * - Chat list: #column-left > #chatlist-container > .chatlist-chat[data-peer-id]
+ * - Search: input.input-search-input; results in .search-super
+ * - Open chat: #column-center .chats-container .chat.active[data-type]
+ * - Header: #column-center .topbar .peer-title
+ * - Messages: #column-center .bubbles .bubble[data-mid].is-in / .is-out
+ * - Loading: .preloader-container.is-visible
+ * - Empty search: .search-super [class*="NoResults"]
  */
 export const SELECTORS = {
   authPage: ["#auth-pages", ".auth-pages", ".auth-pages-wrapper", ".page-auth"],
@@ -20,11 +29,51 @@ export const SELECTORS = {
     "[data-testid='chat-list']",
   ],
   chatItems: [
+    "#chatlist-container .chatlist-chat[data-peer-id]",
     "#chatlist-container .chatlist-chat",
-    "#chatlist-container li",
     ".chat-list .chat-item",
     ".chatlist-chat",
     "a.chat-item",
     "[data-peer-id]",
+  ],
+  mainShell: ["#page-chats", "#column-left", ".whole.page-chats"],
+  chatListContainer: [
+    "#chatlist-container",
+    "#column-left .chatlist-container",
+    "#column-left .chatlist-container-chats",
+  ],
+  chatRows: [
+    "#chatlist-container .chatlist-chat[data-peer-id]",
+    "#chatlist-container .chatlist-chat",
+  ],
+  searchInput: [".input-search-input", "#search-input", "#column-left input[type='search']"],
+  searchResults: [".search-super", ".search-container", "#column-left .search-super"],
+  searchNoResults: [
+    ".search-super [class*='NoResults']",
+    ".search-super [class*='no-results']",
+    "[class*='NoResults']",
+  ],
+  columnCenter: ["#column-center", ".main-column#column-center"],
+  openChat: [
+    "#column-center .chats-container .chat.active",
+    "#column-center .chat.active",
+    "#column-center .chat",
+  ],
+  chatTitle: [
+    "#column-center .topbar .peer-title",
+    "#column-center .chat-info .peer-title",
+    "#column-center .peer-title",
+  ],
+  messageList: ["#column-center .bubbles", "#column-center .bubbles .bubbles-scrollable"],
+  messageRows: ["#column-center .bubble[data-mid]", "#column-center .bubble"],
+  outgoingMessages: ["#column-center .bubble.is-out[data-mid]", "#column-center .bubble.is-out"],
+  incomingMessages: ["#column-center .bubble.is-in[data-mid]", "#column-center .bubble.is-in"],
+  channelPosts: ["#column-center .bubble.channel-post", "#column-center .channel-post"],
+  loading: [".preloader-container.is-visible", ".spinner", ".loading"],
+  emptyState: [
+    ".search-super [class*='NoResults']",
+    ".search-super [class*='no-results']",
+    "#chatlist-container .empty",
+    ".chatlist-empty",
   ],
 } as const;
