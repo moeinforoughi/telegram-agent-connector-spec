@@ -1,7 +1,7 @@
 # Phase 3 — Multi-account Management
 
-Status: In progress — automated implementation complete; live three-account test
-pending.
+Status: **COMPLETE FOR MVP** — two live accounts PASS; third live account
+accepted as not tested. Final report: `docs/phase3/PHASE3_REPORT.md`.
 Start: 2026-11-10
 Depends on: Phase 2 (COMPLETE FOR MVP)
 Scope source: `TASKS/04_MULTI_ACCOUNT.md`, `ROADMAP.md`, `ARCHITECTURE.md`
@@ -160,9 +160,9 @@ Write `docs/phase3/PHASE3_REPORT.md`; update state/handoff. Do not start Phase 4
 | 3 — Per-account controller | Done: fixed `accountId`, no create/remove |
 | 4 — AccountManager | Done: lazy runtimes, max 3, isolation, shutdown |
 | 5 — IPC/preload/renderer | Done: 11 channels, multi-account dashboard |
-| 6 — Verification/report | Automated PASS (117 unit, 13 integration, 13 E2E); live three-account test and Phase 3 report pending |
+| 6 — Verification/report | Done: 118 unit, 13 integration, 13 E2E; two live accounts PASS; report written (`docs/phase3/PHASE3_REPORT.md`) |
 
-Implementation commit: `d1107bc`.
+Implementation commit: `d1107bc`; browser-close readiness fix: `7ed25a2`.
 
 ## Risks and decisions
 

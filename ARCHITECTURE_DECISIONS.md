@@ -139,4 +139,11 @@
 **دلیل:** جداسازی کامل Cookie/Storage/Session هر Account؛ یک Browser Context برای هر Profile؛ جلوگیری از یک Controller غول‌آسا و حفظ معماری Modular Monolith.
 **محدودیت:** Proxy در Phase 3 سراسری است (Per-account Proxy خارج از Scope)؛ Queue عمومی عملیات غیر-Lifecycle در Phase 4 می‌آید؛ سه Chromium هم‌زمان منابع مصرف می‌کنند؛ حذف Account در حین Start می‌تواند با Stop/Relaunch تلاقی کند و باید در تست‌های بعدی پوشش داده شود.
 **اثر:** `src/core/account/account-store.ts`, `src/main/account-controller.ts`, `src/main/account-manager.ts`, `src/main/ipc-router.ts`, `src/preload/index.ts`, `src/renderer/src/App.tsx`.
-**وضعیت تست:** Registry (117 Unit شامل 3 Account/Path/Recovery)، Manager (Lazy/Limit/Isolation/Serialize/Remove/Shutdown)، IPC و E2E چنداکانتی. لاگین واقعی سه Account هنوز Pending است.
+**وضعیت تست:** Registry (118 Unit شامل 3 Account/Path/Recovery)، Manager (Lazy/Limit/Isolation/Serialize/Remove/Shutdown)، IPC و E2E چنداکانتی. تست زنده با دو Account واقعی PASS شد؛ Account سوم به‌صورت زنده تست نشد (پذیرفته‌شده برای MVP).
+
+## ADR-023 — Normal Browser Close is `Ready`, not an Error
+**تصمیم:** بستن عادی پنجره Chromium توسط کاربر وضعیت Account را به `ready` تغییر دهد، نه `error`. `loginState` آخرین مقدار شناخته‌شده حفظ شود (در UI با عنوان «Last known») و Reconnect همان Profile/Session را دوباره باز کند. بستن یک Account نباید Account دیگر را تغییر دهد. `stop()` عمدی همچنان `disconnected` است. Crash Detection پیچیده در این مرحله اضافه نشود.
+**دلیل:** بستن Browser یک عمل عادی است و نباید Session معتبر را «خطا» نشان دهد؛ UI قبلی با `BROWSER_CLOSED`/Error کاربر را گمراه می‌کرد. Session در Profile ذخیره است و مستقل از Runtime Browser باقی می‌ماند.
+**محدودیت:** `ready` یعنی Browser بسته است و اعتبار Session تأیید نشده؛ Crash هنوز از Close عادی تفکیک نمی‌شود و فقط Log می‌شود. `BROWSER_CLOSED` ممکن است از Monitor بیاید و به همان `ready` نگاشت می‌شود.
+**اثر:** `src/shared/account.ts`, `src/main/account-controller.ts`, `src/renderer/src/App.tsx`.
+**وضعیت تست:** Unit برای Close/Last-known/Reconnect same profile و Isolation بین دو Account؛ E2E چنداکانتی بدون خطای Close.

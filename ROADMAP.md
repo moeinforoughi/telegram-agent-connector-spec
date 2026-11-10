@@ -8,12 +8,15 @@
 
 ## Phase 2 — Browser & Login
 اتصال یک اکانت، QR Login و Persistent Profile. خروجی: ورود واقعی با حساب آزمایشی و حفظ Session پس از Restart.
+**وضعیت: COMPLETE FOR MVP (2026-11-10؛ deferred verifications پذیرفته شد).**
 
 ## Phase 3 — Multi-account
 مدیریت چند Profile مستقل. خروجی: حداقل سه اکانت بدون تداخل.
+**وضعیت: COMPLETE FOR MVP (2026-11-10؛ دو Account زنده PASS، Account سوم live Tested نشد).**
 
 ## Phase 4 — Safe Telegram Web Operations
 عملیات UI کم‌ریسک و غیرمحتوایی. خروجی: وضعیت اکانت، فهرست محدود چت‌ها و عملیات آرشیو/Pin/Mute در صورت پشتیبانی.
+**وضعیت: Planned — `docs/phase4/PHASE4_PLAN.md`؛ await approval.**
 
 ## Phase 5 — MCP Bridge
 اتصال MCP Client به Core محلی. خروجی: Toolهای کم‌تعداد، خروجی محدود و STDIO پایدار.

@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (Phase 2 complete for MVP; Phase 3 starting)
+Last updated: 2026-11-10 (Phase 3 complete for MVP; Phase 4 planned)
 
 ## Project Goal
 
@@ -47,16 +47,16 @@ implied affiliation.
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
 | 2 — Browser Manager, proxy, single account login | **COMPLETE FOR MVP** — deferred verifications accepted | `docs/phase2/PHASE2_REPORT.md` (§9.1); Tasks 1–8 and proxy fixes committed |
-| 3 — Multi-account management | In progress — automated implementation complete; live three-account test pending | `TASKS/04_MULTI_ACCOUNT.md`, `docs/phase3/PHASE3_PLAN.md`, commit `d1107bc` |
-| 4+ | Not started; no approval | Roadmap docs |
+| 3 — Multi-account management | **COMPLETE FOR MVP** — two live accounts PASS; third live account accepted as not tested | `docs/phase3/PHASE3_REPORT.md`, commits `d1107bc`, `7ed25a2` |
+| 4 — Telegram Operations | Planned — not started; awaiting explicit approval | `docs/phase4/PHASE4_PLAN.md`, `TASKS/05_TELEGRAM_OPERATIONS.md` |
+| 5+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 3 — Multi-account Management. Automated implementation is complete:
-account registry, per-account controller/runtime, `AccountManager`, max-active
-browser limit, multi-account IPC/preload/dashboard, and tests. Remaining: a live
-test with three real accounts to confirm independent sessions (and a Phase 3
-report). Phase 4 (Telegram operations/MCP) is not authorized.
+Phase 4 — Telegram Operations, **planned only; not started**. The plan is
+`docs/phase4/PHASE4_PLAN.md`; implementation requires explicit user approval.
+Start read-only with the two preserved sessions (`moein1`, `kaonashi`). No
+message send/edit/delete without explicit approval. Do not start Phase 5 (MCP).
 
 ## Session-Independent Development
 
@@ -158,14 +158,22 @@ code, and test evidence win.
   Windows restart, proxy loss/recovery, session revoke, and 10808
   troubleshooting are **NOT TESTED** by user decision. QR-vs-phone and 2FA were
   not recorded. See `docs/phase2/PHASE2_REPORT.md` §9.1.
-- Phase 3 (2026-11-10, commit `d1107bc`): multi-account registry and manager.
-  `AccountStore` now lists/gets/renames accounts, validates profile paths, and
-  backs up/recoveries a corrupt registry. `AccountManager` owns one lazy
+- Phase 3 (2026-11-10, commits `d1107bc`, `7ed25a2`): multi-account registry and
+  manager. `AccountStore` lists/gets/renames accounts, validates profile paths,
+  and backs up/recoveries a corrupt registry. `AccountManager` owns one lazy
   `AccountController` + `BrowserManager` runtime per account, caps active
   browsers at 3, serializes same-account starts, and removes profiles only with
   explicit confirmation. IPC/preload/dashboard moved to a multi-account surface.
-  Automated: 117 unit, 13 integration, 13 E2E; `npm run check` passes.
-  Live three-account login is **Pending**.
+  Closing a browser normally now yields `ready` (not error), keeps the last known
+  login state, and Reconnect reuses the same profile (ADR-023).
+  Automated: 118 unit, 13 integration, 13 E2E; `npm run check` passes.
+- Live Phase 3 results (2026-11-10, user-run): two real accounts (`moein1`,
+  `kaonashi`) both logged in to Connected through SOCKS5 `127.0.0.1:12334`, both
+  browsers were closed by the user, no account was removed, and both profiles/
+  sessions were preserved for Phase 4. A third live account was not tested and is
+  accepted for MVP. Only labels are recorded; no phone/identity/cookie/token is
+  in the repository. **Do not delete, reset, logout, or remove these two
+  profiles/sessions.**
 - Known architecture gap: the browser close reason is not modelled. An
   intentional user close currently becomes a `BROWSER_CLOSED` error; a crash is
   only logged. Browser runtime state and stored session state are not yet
@@ -195,6 +203,7 @@ code, and test evidence win.
 | `8126928` | Close Phase 2 for MVP with accepted deferred verifications |
 | `51d4ccc` | Phase 3 multi-account plan |
 | `d1107bc` | Multi-account manager, registry, IPC and dashboard |
+| `7ed25a2` | Normal browser close becomes Ready, not an error |
 
 ## Key Documents
 
@@ -205,9 +214,11 @@ code, and test evidence win.
   implemented through Phase 3, with divergences and limits.
 - `docs/phase2/PHASE2_REPORT.md` — final Phase 2 verification and accepted
   deferred checks.
-- `docs/phase3/PHASE3_PLAN.md` — active Phase 3 plan.
+- `docs/phase3/PHASE3_PLAN.md` — Phase 3 plan (complete).
+- `docs/phase3/PHASE3_REPORT.md` — Phase 3 final report and live results.
+- `docs/phase4/PHASE4_PLAN.md` — Phase 4 plan (planned, not started).
 - `TASKS/00_DISCOVERY_AND_SPIKE.md`, `TASKS/01_REPO_FOUNDATION.md`,
   `TASKS/02_DESKTOP_SHELL.md`, `TASKS/03_BROWSER_LOGIN_SESSION.md`,
-  `TASKS/04_MULTI_ACCOUNT.md`.
+  `TASKS/04_MULTI_ACCOUNT.md`, `TASKS/05_TELEGRAM_OPERATIONS.md`.
 - `docs/handoff/` — cross-session state.
 - `docs/phase2/PHASE2_PLAN.md` — Phase 2 plan (complete).

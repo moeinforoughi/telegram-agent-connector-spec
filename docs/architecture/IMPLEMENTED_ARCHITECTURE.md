@@ -187,8 +187,8 @@ singleton lock:
   `PROFILE_LOCKED` error propagates unchanged.
 - `close` clears the session first, closes the context, and always releases the
   lock.
-- External context close releases the lock and calls the `onClosed` hook, which
-  the controller turns into a `BROWSER_CLOSED` error view.
+- External context close releases the lock and calls the `onClosed` hook; the
+  controller moves the account to `ready` (ADR-023), not an error.
 
 ### Lifecycle
 
@@ -296,8 +296,9 @@ auth/QR UI and the prompt reappears.
   proxy configuration changed or the page was closed.
 - On `CONNECTED`, `lastConnectedAt` is persisted for that account.
 - `stop()` closes the browser and returns to `disconnected`.
-- `handleBrowserClosed()` marks the account as `BROWSER_CLOSED` unless the close
-  was initiated by `stop()`.
+- `handleBrowserClosed()` moves the account to `ready`, keeps the last known
+  `loginState`, and leaves the profile/session untouched (ADR-023); `stop()`
+  produces `disconnected`.
 
 ### IPC, preload, dashboard
 
@@ -365,7 +366,7 @@ connector; the configured proxy is the only proxy the connector applies.
 
 | Layer | Location | Count at Phase 2 final | What it proves |
 |---|---|---|---|
-| Unit | `tests/unit/` | 19 files / 117 tests | Pure logic: proxy parsing/settings/probe, account registry/manager/controller, lock, detector, monitor, IPC, paths, windows, errors |
+| Unit | `tests/unit/` | 19 files / 118 tests | Pure logic: proxy parsing/settings/probe, account registry/manager/controller, lock, detector, monitor, IPC, paths, windows, errors |
 | Integration | `tests/integration/` | 2 files / 13 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, saved-settings→Playwright, Telegram HTML fixtures |
 | Electron E2E | `tests/e2e/` | 1 file / 13 tests | Real Electron: security invariants, preload surface, data paths, multi-account dashboard/list/create-three, proxy form, immediate enable persistence, credential protection, Playwright in Main, navigation blocking, CSP, quit |
 | Live manual | user-run | 0 run | Real QR/2FA/session/restart through the user's proxy; requires the user |
@@ -392,7 +393,7 @@ dynamic-import callback (ADR-019).
 | 2 | System Proxy First + Manual Fallback (ADR-013) | Manual proxy only; no system detection, no fallback (ADR-020) | User's Windows system proxy is unset while local proxies run; automatic detection produced `direct` and a network error | Deterministic, vendor-neutral, testable, no OS changes | User must configure the proxy once; nothing is auto-detected | Proxy UI + persistence + Test Proxy | Unit/integration/E2E; real local proxies verified |
 | 3 | Per-account serialized Task Queue | `AccountManager` creates one runtime per account (ADR-022); same-account `start()` is serialized by an in-flight promise; max 3 active browsers | Phase 3 needs isolated accounts but no Telegram operations yet | Account isolation, lazy launch, bounded resources | No generic task queue for non-lifecycle operations; remove-during-start race is untested | Phase 4 adds the operation queue | Manager/unit + E2E multi-account tests |
 | 4 | Account Registry, permissions, audit logger | JSON registry + account manager only | Later phases | Minimal MVP | No audit trail or policy enforcement yet | Phase 4/5 | Store/manager tested; policy not implemented |
-| 5 | Account view reflects persisted metadata at launch | Per-account views are initialized from the registry; the manager lists accounts before any browser starts | Phase 3 multi-account UI | Correct account list and labels after restart | Browser runtime state and stored session state are still not separate; intentional close becomes `BROWSER_CLOSED` | Follow-up state model | Store/manager/E2E tested; close semantics not |
+| 5 | Account view reflects persisted metadata at launch | Per-account views are initialized from the registry; the manager lists accounts before any browser starts | Phase 3 multi-account UI | Correct account list and labels after restart; normal browser close is `ready` with last-known login (ADR-023) | Crash vs normal close is not distinguished; a real crash is only logged | Follow-up crash detection | Store/manager/E2E tested; close semantics covered for normal close |
 | 6 | Named Pipe MCP bridge | Not implemented | Phase 5 | — | No agent integration yet | Future | — |
 | 7 | System tray / close-to-tray (optional) | Not implemented; closing the window quits | Phase 2 scope | Simpler lifecycle | None for MVP | — | Quit-on-last-window tested |
 | 8 | `web.telegram.org` start URL | `/k/` only (ADR-011) | Phase 0 evidence | Stable selector set | Other variants unsupported | Phase 3+ | URL validator tested |
@@ -440,8 +441,8 @@ dynamic-import callback (ADR-019).
   `npm run check` passes even when the agent shell exports it. `npm run dev` and
   `npm start` inherit the shell environment, so a GUI session must unset it in
   that shell.
-- Page crash is logged but does not yet close the context; only context close
-  drives `BROWSER_CLOSED`.
+- Page crash is logged but does not yet close the context; an external context
+  close moves the account to `ready` (ADR-023).
 - `uncaughtException` exits immediately; a running Playwright browser may
   outlive the app in that path.
 

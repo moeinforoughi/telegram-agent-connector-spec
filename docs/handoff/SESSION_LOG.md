@@ -249,6 +249,25 @@
 - No product code changed in this step; documentation commit follows. Check
   `git log -1`.
 
+## 2026-11-10 — Phase 3 live results, browser-close fix, closure
+
+- User ran two real accounts: `moein1`, `kaonashi`; both launched Chromium
+  through SOCKS5 `127.0.0.1:12334`, both reached Connected, both browsers were
+  closed, no account was removed, and both profiles/sessions were preserved for
+  Phase 4. A third live account was not tested (accepted for MVP).
+- Browser close semantics fixed in `7ed25a2`:
+  - Normal user close → status `ready`, not error.
+  - `loginState` kept as last known; profile/session untouched.
+  - Reconnect reuses the same profile.
+  - Closing one account does not affect another.
+- Tests: 118 unit, 13 integration, 13 E2E; `npm run check` PASS.
+- Wrote `docs/phase3/PHASE3_REPORT.md` and marked Phase 3 **COMPLETE FOR MVP**.
+- Wrote `docs/phase4/PHASE4_PLAN.md` for Telegram Operations: read-only first,
+  two preserved sessions, per-account queue, send/reply only with explicit
+  approval, MCP stays Phase 5.
+- No account/profile/session was deleted or modified. No real message was sent.
+- Documentation commit follows; check `git log -1`. Phase 4 is not started.
+
 ## 2026-11-10 — Phase 3 multi-account implementation
 
 - Phase 2 closed for MVP (`8126928`) with accepted deferred verifications.

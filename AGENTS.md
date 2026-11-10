@@ -38,6 +38,8 @@
 - Integration اختصاصی برای V2RayN، Hiddify یا هر نرم‌افزار Proxy نساز و تنظیمات
   شبکه Windows را تغییر نده.
 - Credential پروکسی را در URL، Log، IPC، مستندات یا فایل Plain Text قرار نده.
+- Profile یا Session موجود کاربر را بدون تأیید صریح حذف، Reset یا Logout نکن؛
+  Cookie/Token/اطلاعات هویتی را استخراج یا وارد Git نکن.
 
 ## قواعد کدنویسی
 - TypeScript strict فعال باشد.

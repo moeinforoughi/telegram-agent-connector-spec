@@ -32,8 +32,11 @@ Priority: P1 | Depends on: TASK 03 | Commit: `feat(accounts): add multi-account 
 حداقل سه اکانت مستقل مدیریت شوند؛ هیچ Cookie/Storage مشترک نباشد.
 
 ## Status (2026-11-10)
-- پیاده‌سازی و تست خودکار: **PASS** (`d1107bc`): 117 Unit، 13 Integration، 13 E2E.
+- پیاده‌سازی و تست خودکار: **PASS** (`d1107bc`): 118 Unit، 13 Integration، 13 E2E.
 - Registry چنداکانتی، AccountManager با Runtime مستقل برای هر اکانت، سقف ۳
   Browser، Lazy Launch، IPC/Preload/داشبورد چنداکانتی.
-- تست زنده با سه اکانت واقعی و ورود هم‌زمان هنوز **Pending** است؛ Phase 3 کامل
-  اعلام نمی‌شود تا آن تست انجام شود.
+- تست زنده: دو Account واقعی (`moein1`, `kaonashi`) با Proxy
+  `socks5://127.0.0.1:12334` Connected شدند؛ هر دو Browser بسته شدند و
+  Sessionها حفظ شدند. Account سوم به‌صورت زنده تست نشد (پذیرفته‌شده برای MVP).
+- بستن عادی Browser اکنون `Ready` است، نه Error (`7ed25a2`).
+- Phase 3: **COMPLETE FOR MVP**. جزئیات: `docs/phase3/PHASE3_REPORT.md`.

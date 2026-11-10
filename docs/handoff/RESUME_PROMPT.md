@@ -31,19 +31,23 @@ Before changing anything:
 
 ## Current state (2026-11-10)
 
-**Phase 2 is COMPLETE FOR MVP — ACCEPTED DEFERRED VERIFICATIONS.** Real Telegram
-login, Connected status, browser close/reopen, and session persistence across
-browser restart PASS (successful proxy: SOCKS5 `127.0.0.1:12334`). Deferred and
-recorded as NOT TESTED: Electron full restart (user cleared the session first),
-Windows full restart, proxy loss/recovery, session revoke, and 10808
-troubleshooting.
+**Phase 2 is COMPLETE FOR MVP** with accepted deferred verifications.
+**Phase 3 is COMPLETE FOR MVP**: two real accounts (`moein1`, `kaonashi`) logged
+in through SOCKS5 `127.0.0.1:12334`, both browsers were closed, and both
+profiles/sessions were preserved for Phase 4. A third live account was not tested
+(accepted). Normal browser close now shows `Ready` with last-known login, not an
+error.
 
-**Phase 3 — Multi-account Management is in progress.** Automated implementation
-is committed (`d1107bc`): registry, per-account runtime/controller,
-`AccountManager` with lazy launch and max 3 browsers, multi-account IPC/preload/
-dashboard, and tests (117 unit, 13 integration, 13 E2E). Remaining: a live
-three-account isolation test and the Phase 3 report. Do not re-run Phase 2
-deferred tests unless asked. Phase 4 (Telegram operations/MCP) is not authorized.
+**Phase 4 — Telegram Operations is planned only, not started.** Read
+`docs/phase4/PHASE4_PLAN.md`; implementation requires explicit user approval and
+starts read-only. Never send/edit/delete a real message without explicit
+approval. MCP remains Phase 5.
+
+**Critical:** never delete, reset, logout, or remove the two existing account
+profiles/sessions; never extract cookies/tokens or commit profile data. Phase 4
+tests use these preserved sessions.
+
+Do not re-run Phase 2 deferred tests unless asked. Phase 4/5 is not authorized.
 
 Proxy rules (permanent): the connector uses only the user's saved manual proxy
 (SOCKS5/HTTP, host, port, optional credentials). There is no system-proxy
