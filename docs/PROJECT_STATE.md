@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-10 (Phase 2, Task 8 in progress: governance + audit)
+Last updated: 2026-11-10 (Phase 2 automated verification complete; live manual pending)
 
 ## Project Goal
 
@@ -46,14 +46,15 @@ implied affiliation.
 |---|---|---|
 | 0 — Feasibility spike | Complete, GO with conditions | `docs/spike/PHASE0_REPORT.md`, `spike/logs/spike-state.jsonl` |
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
-| 2 — Browser Manager, proxy, single account login | In progress | `docs/phase2/PHASE2_PLAN.md`; Tasks 1–7 committed, Task 8 in progress |
+| 2 — Browser Manager, proxy, single account login | **Partially Verified** — automated green, live manual pending | `docs/phase2/PHASE2_PLAN.md`, `docs/phase2/PHASE2_REPORT.md`; Tasks 1–8 committed |
 | 3+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 2, Task 8 — verification and Phase 2 report. In progress: governance
-update and architecture audit first, then automated verification, then the live
-QR/2FA/restart checklist that needs the user and a real Telegram account.
+Phase 2, Task 8 — automated verification is complete and committed; the live
+manual checklist in `docs/phase2/PHASE2_REPORT.md` §8 is **Pending** and
+requires the user, a real Telegram account, and QR/2FA. Phase 2 stays
+"Partially Verified" until those steps are performed and recorded.
 Do not start Phase 3.
 
 ## Session-Independent Development
@@ -100,20 +101,25 @@ code, and test evidence win.
   Playwright-in-main test now loads Playwright through
   `process.mainModule.require(<appPath>/node_modules/playwright)` because
   `app.evaluate` has no dynamic-import callback.
-- Full verification at Task 7 completion (2026-11-10): `npm run check` passed —
-  typecheck, lint, format:check, 103 unit tests, 9 integration tests (real
-  Chromium), build, and 8 E2E tests.
+- Full verification at Task 8 (2026-11-10, commit `582c01a`): `npm run check`
+  passed with `ELECTRON_RUN_AS_NODE=1` still exported — typecheck, lint,
+  format:check, 103 unit tests, 11 integration tests (real Chromium), build, and
+  8 E2E tests. Task 8 added stale-lock profile recovery, proxy-loss/recovery,
+  and E2E environment sanitization.
 - The account renderer never receives profile paths or credentials;
   `AccountView` carries status metadata only.
 - Playwright browsers for the root package are not in the default cache; the
-  Phase 0 download lives in gitignored `spike/.browsers` (Chromium 1254). Use
-  `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` for local integration/E2E tests.
-- The DSH shell exports `ELECTRON_RUN_AS_NODE=1`. With it set, Playwright's
-  Electron launch fails with `bad option: --remote-debugging-port=0`. Unset it
-  (for example `Remove-Item Env:ELECTRON_RUN_AS_NODE`) before E2E runs; this is
-  an environment artifact, not an application bug.
-- Live QR/2FA/session-restart/proxy-loss checks have not been run in Phase 2 and
-  require the user.
+  Phase 0 download lives in gitignored `spike/.browsers` (Chromium revision 1254,
+  matching Playwright 1.65.0). Use `PLAYWRIGHT_BROWSERS_PATH=spike/.browsers` for
+  local integration/E2E tests. Phase 6 must bundle Chromium.
+- The DSH shell exports `ELECTRON_RUN_AS_NODE=1`. With it set, Electron boots as
+  Node and Playwright's Electron launch fails with
+  `bad option: --remote-debugging-port=0`. The E2E launcher now strips it from
+  the child environment, so `npm run check` works regardless; `npm run dev` in
+  that shell still needs it unset. No Windows environment change is made.
+- Live QR/2FA/session-restart/Electron-restart/proxy operations are **Pending**
+  and require the user; see `docs/phase2/PHASE2_REPORT.md` §8. Phase 2 is
+  therefore Partially Verified, not complete.
 
 ## Important Commits
 
@@ -131,13 +137,17 @@ code, and test evidence win.
 | `7c51c03` | Reconcile handoff with the real repository state |
 | `07f20d9` | Account IPC, preload bridge and single-account dashboard |
 | `0ac40fe` | Permanent session-independent development rules |
+| `9c2d0d2` | Implemented architecture audit and ADR-015…019 |
+| `582c01a` | Task 8 automated verification tests |
 
 ## Key Documents
 
 - `AGENTS.md` — permanent engineering rules, including session independence.
 - `ARCHITECTURE.md`, `ARCHITECTURE_DECISIONS.md`, `SECURITY_THREAT_MODEL.md`.
 - `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` — architecture actually
-  implemented through Phase 2 Task 7, with divergences and limits.
+  implemented through Phase 2 Task 8, with divergences and limits.
+- `docs/phase2/PHASE2_REPORT.md` — final Phase 2 verification and the pending
+  live checklist.
 - `TASKS/00_DISCOVERY_AND_SPIKE.md`, `TASKS/01_REPO_FOUNDATION.md`,
   `TASKS/02_DESKTOP_SHELL.md`, `TASKS/03_BROWSER_LOGIN_SESSION.md`.
 - `docs/handoff/` — cross-session state.

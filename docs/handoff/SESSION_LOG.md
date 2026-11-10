@@ -116,3 +116,30 @@
   the DSH shell only (not User/Machine), `spike/.browsers` matches Playwright's
   pinned Chromium revision 1254, and the default Playwright cache is absent.
 - No product code changed in this step.
+
+## 2026-11-10 — Phase 2 Task 8 automated verification
+
+- Commit `0ac40fe` — session-independent development workflow.
+- Commit `9c2d0d2` — implemented architecture audit and ADR-015…019.
+- Commit `582c01a` — Task 8 automated verification:
+  - E2E `launchEnv` now strips `ELECTRON_RUN_AS_NODE`, so the Electron child
+    boots as Electron regardless of the agent shell.
+  - New integration test: stale lock is replaced and the profile is preserved.
+  - New integration test: navigation fails while the local proxy is down and
+    recovers after the proxy returns.
+- Verification on `582c01a` with `ELECTRON_RUN_AS_NODE=1` still exported:
+  - `npm run check` → PASS (exit 0).
+  - Typecheck, lint, format:check → PASS.
+  - Unit 103/103 PASS; integration 11/11 PASS (real Chromium); E2E 8/8 PASS;
+    build PASS.
+- Task 7 review: IPC surface, preload minimality, renderer isolation, sender and
+  payload validation, dashboard flow, and metadata handling all verified.
+  `process.mainModule` is test-only and deprecated; documented in ADR-019.
+- Wrote `docs/phase2/PHASE2_REPORT.md` with the automated evidence matrix, Task 7
+  review, environment findings, the 16-step live checklist, Phase 2 exit
+  criteria, and known limitations.
+- Updated architecture test counts and the `ELECTRON_RUN_AS_NODE` handling note.
+- Phase 2 is **Partially Verified**: live QR/2FA/session/restart/proxy steps are
+  Pending and must be run by the user. No Phase 3 work started.
+- Final documentation commit hash: see `git log -1` (this entry is committed
+  with it).

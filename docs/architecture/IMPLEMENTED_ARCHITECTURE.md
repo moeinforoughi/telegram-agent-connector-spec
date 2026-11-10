@@ -336,7 +336,7 @@ layer, outside this resolver. A VPN that configures WinINET appears as source
 | Layer | Location | Count at Task 7 | What it proves |
 |---|---|---|---|
 | Unit | `tests/unit/` | 17 files / 103 tests | Pure logic: proxy resolution, registry parsing, lock, detector, monitor, store, controller, IPC, paths, windows, errors |
-| Integration | `tests/integration/` | 2 files / 9 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, HTTP proxy auth, bypass, Telegram HTML fixtures |
+| Integration | `tests/integration/` | 2 files / 11 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, bypass, proxy loss/recovery, Telegram HTML fixtures |
 | Electron E2E | `tests/e2e/` | 1 file / 8 tests | Real Electron: security invariants, preload surface, data paths, dashboard, Playwright in Main, navigation blocking, CSP, quit |
 | Live manual | none automated | 0 run | Real QR/2FA/session/restart/proxy behavior; requires the user |
 
@@ -346,9 +346,11 @@ Integration tests fail loudly (not skip) when the pinned Chromium is missing
 
 Unit tests use fakes for `Page`, `BrowserContext`, launcher, clock, and proxy
 resolution. Integration tests use local HTTP servers and never contact Telegram.
-The E2E Playwright-in-Main test resolves the externalized package from
-`<appPath>/node_modules/playwright` through `process.mainModule.require`, because
-`app.evaluate` has no dynamic-import callback (ADR-019).
+Task 8 added stale-lock recovery with a real Chromium and proxy-loss/recovery
+through a restartable local proxy. The E2E Playwright-in-Main test resolves the
+externalized package from `<appPath>/node_modules/playwright` through
+`process.mainModule.require`, because `app.evaluate` has no dynamic-import
+callback (ADR-019).
 
 ## 9. Divergences from the target architecture
 
@@ -397,8 +399,10 @@ The E2E Playwright-in-Main test resolves the externalized package from
   repository keeps it in gitignored `spike/.browsers`. The default
   `%LOCALAPPDATA%\ms-playwright` cache is absent on this machine. Dev and tests
   set `spike/.browsers`; Phase 6 must ship a matching browser.
-- The E2E launcher inherits the caller environment; Task 8 adds explicit
-  sanitization of `ELECTRON_RUN_AS_NODE`.
+- The E2E launcher strips `ELECTRON_RUN_AS_NODE` from the child environment, so
+  `npm run check` passes even when the agent shell exports it. `npm run dev` and
+  `npm start` inherit the shell environment, so a GUI session must unset it in
+  that shell.
 - Page crash is logged but does not yet close the context; only context close
   drives `BROWSER_CLOSED`.
 - `uncaughtException` exits immediately; a running Playwright browser may
@@ -409,9 +413,11 @@ The E2E Playwright-in-Main test resolves the externalized package from
 ```powershell
 $env:PATH = "C:\Users\mforo\AppData\Local\Temp\opencode\node-v26.13.0-win-x64;" + $env:PATH
 $env:PLAYWRIGHT_BROWSERS_PATH = "spike/.browsers"
-Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 npm run check
 ```
+
+`npm run check` strips `ELECTRON_RUN_AS_NODE` for its E2E child process; unset it
+only for interactive `npm run dev` / `npm start`.
 
 For each claim in §3–§7, the corresponding unit/integration/E2E test is named in
 `tests/`. `git log --oneline` shows the commit that introduced each component.

@@ -33,4 +33,6 @@ UI قابل استفاده و ساده باشد؛ هیچ قابلیت تزئین
 ## Phase 2 Mapping (2026-11-10)
 - این Task با Taskهای ۲.۴ و ۲.۵ پلن Phase 2 پیاده‌سازی می‌شود: Account Metadata، IPC و داشبورد تک‌اکانتی.
 - جزئیات: `docs/phase2/PHASE2_PLAN.md`.
-- وضعیت: در حال اجرا (Phase 2).
+- وضعیت: داشبورد تک‌اکانتی، IPC و Preload در Phase 2 پیاده و تست شدند
+  (`07f20d9`). System Tray و Close-to-tray در Phase 2 پیاده نشده و در فاز بعدی
+  بررسی می‌شود.
