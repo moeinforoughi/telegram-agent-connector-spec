@@ -35,14 +35,15 @@ Before changing anything:
 (`moein1`, `kaonashi`) are preserved for Phase 4. Never delete, reset, logout,
 remove, or commit their profiles/cookies/tokens; no personal data in the repo.
 
-**Phase 4 — Telegram Operations is in progress: Task 1 complete.** A read-only
-DOM/selector audit, `chat-surface` adapter, fixtures and tests are committed
-(`363ea0a`). Task 2 (per-account action queue + read-only chat/message helpers)
-must not start without explicit user approval. No message may be sent, edited,
-deleted, forwarded, or reacted to. MCP remains Phase 5.
+**Phase 4 — Telegram Operations is in progress: Tasks 1–2 complete.** A read-only
+DOM/selector audit, `chat-surface`, per-account `AccountActionQueue`, and
+`TelegramReadAdapter` are committed (`363ea0a`, `b7eae50`). Task 3 (read-only
+IPC/preload/renderer) must not start without explicit user approval. No message
+may be sent, edited, deleted, forwarded, or reacted to. MCP remains Phase 5.
 
-Read `docs/phase4/TASK1_DOM_AUDIT.md` for the confirmed selectors and
-limitations. Do not start Phase 5.
+Read `docs/phase4/TASK1_DOM_AUDIT.md` and `docs/phase4/TASK2_READ_ADAPTER.md`
+for selectors, API, limits and limitations; `docs/phase4/PHASE4_REPORT.md` is the
+phase-level status report. Do not start Phase 5.
 
 Proxy rules (permanent): the connector uses only the user's saved manual proxy
 (SOCKS5/HTTP, host, port, optional credentials). There is no system-proxy

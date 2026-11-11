@@ -254,6 +254,21 @@ auth/QR UI and the prompt reappears.
 - Confirmed against two real sessions and synthetic fixtures. Selector details
   and limitations: `docs/phase4/TASK1_DOM_AUDIT.md`.
 
+## 5.2 Read-only operations (Phase 4 Task 2)
+
+- `src/main/account-action-queue.ts`: one serial queue per account; queues are
+  independent, so accounts run in parallel while one account stays sequential.
+  Timeout, error recovery and `BROWSER_CLOSED` checks; no global queue.
+- `src/main/telegram-read-adapter.ts`: read-only `listChats`, `searchChats`,
+  `getChatListState`, `getOpenChatInfo`, `openChat` (explicit only),
+  `readVisibleMessages`, `getMessageMetadata`, `getMessageCount`, and
+  `classifyMessageDirection`.
+- Results are bounded; message text/title/preview/sender are capped. Lists and
+  search never open chats; `openChat` may mark a chat read and must be explicit.
+- `AccountController.getPage()` / `AccountManager.getPage()` expose the live
+  page to Main only; no page, cookie, or token reaches the renderer/Agent.
+- Details/limits: `docs/phase4/TASK2_READ_ADAPTER.md`.
+
 ## 6. Account architecture
 
 ### Store
@@ -379,8 +394,8 @@ connector; the configured proxy is the only proxy the connector applies.
 
 | Layer | Location | Count at Phase 2 final | What it proves |
 |---|---|---|---|
-| Unit | `tests/unit/` | 20 files / 129 tests | Pure logic: proxy parsing/settings/probe, account registry/manager/controller, Telegram surface, lock, detector, monitor, IPC, paths, windows, errors |
-| Integration | `tests/integration/` | 3 files / 20 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, saved-settings→Playwright, Telegram HTML fixtures, read-only chat surface |
+| Unit | `tests/unit/` | 21 files / 134 tests | Pure logic: proxy parsing/settings/probe, account registry/manager/controller, Telegram surface, action queue, lock, detector, monitor, IPC, paths, windows, errors |
+| Integration | `tests/integration/` | 4 files / 31 tests | Real Playwright Chromium: persistence, lock conflict, cleanup, stale-lock recovery, HTTP proxy auth, SOCKS5, bypass, proxy loss/recovery, saved-settings→Playwright, Telegram HTML fixtures, read-only chat surface, read adapter |
 | Electron E2E | `tests/e2e/` | 1 file / 13 tests | Real Electron: security invariants, preload surface, data paths, multi-account dashboard/list/create-three, proxy form, immediate enable persistence, credential protection, Playwright in Main, navigation blocking, CSP, quit |
 | Live manual | user-run | 0 run | Real QR/2FA/session/restart through the user's proxy; requires the user |
 

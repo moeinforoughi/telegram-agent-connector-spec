@@ -315,3 +315,41 @@
 - Remaining: live three-real-account isolation test and
   `docs/phase3/PHASE3_REPORT.md`. Phase 4 not started.
 - Documentation commit follows; check `git log -1`.
+
+## 2026-11-10 — Phase 4 Task 2: queue + read-only helpers
+
+- Added `AccountActionQueue` (one per account; sequential per account, parallel
+  across accounts; timeout; error recovery; browser-closed handling; no global
+  queue).
+- Added `TelegramReadAdapter`: listChats, searchChats, getChatListState,
+  getOpenChatInfo, openChat (explicit), readVisibleMessages, getMessageMetadata,
+  getMessageCount, classifyMessageDirection.
+- Bounded output; no write operations. Lists/search never open chats; openChat
+  may mark read and is explicit only.
+- Added `getPage` on controller/manager, `CHAT_NOT_FOUND`, fixtures and tests.
+  Refined chat-list loading so a message-area preloader does not mask a ready
+  list.
+- Tests: `npm run check` PASS — 134 unit, 31 integration, 13 E2E.
+- Real read-only smoke: `moein1` 11 rows / 5 search results; `kaonashi` 12 rows
+  / 1 search result. No chat opened because all visible chats had unread badges;
+  message helpers are fixture-tested. No content logged.
+- Commit `b7eae50`. Report: `docs/phase4/TASK2_READ_ADAPTER.md`.
+- Stopped after Task 2; Task 3 awaits explicit approval. No writes, no MCP.
+- Documentation commit follows; check `git log -1`.
+
+## 2026-11-11 — Phase 4 Task 2 verification after ACCOUNT_QUOTA
+
+- Resumed after the previous session stopped on ACCOUNT_QUOTA. Checked the real
+  repository state first: Task 2 code and tests were already committed as
+  `b7eae50`; only documentation was uncommitted.
+- Re-ran `npm run check` (2026-11-11) — exit 0: typecheck, lint, format PASS;
+  21 unit files / 134 tests PASS; 4 integration files / 31 tests PASS;
+  13 Electron E2E PASS; build PASS.
+- No test was deleted, skipped, or rewritten; no product code changed.
+- Added `docs/phase4/PHASE4_REPORT.md` (phase-level report, in-progress status)
+  and fixed a stale TASKS/05 line that still said operations belong to Tasks 2–4.
+- Did not repeat the live smoke: the previous session's sanitized result is
+  recorded and no raw log exists by design. Live message read remains untested.
+- No account, profile, or session was opened, deleted, reset, or logged out in
+  this session. No message was sent, edited, deleted, forwarded, or reacted to.
+- Documentation commit follows; check `git log -1`. Task 3 awaits approval.

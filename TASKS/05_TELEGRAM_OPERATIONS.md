@@ -50,5 +50,13 @@ Priority: P1 | Depends on: TASK 03, TASK 04 | Commit: `feat(telegram): add safe 
   messages/direction, channel posts, loading and empty state.
 - [x] Read-only `chat-surface` adapter + fixtures + unit/integration tests.
 - Report: `docs/phase4/TASK1_DOM_AUDIT.md`; commit `363ea0a`.
+
+## Phase 4 Task 2 Status (2026-11-10)
+- [x] Per-account `AccountActionQueue` with timeout/error recovery/isolation.
+- [x] Read-only `TelegramReadAdapter` (list/search/open/info/messages/metadata).
+- [x] Bounded results; no write operations; lists/search do not open chats.
+- [x] Unit + integration fixtures; real list/search smoke.
+- Report: `docs/phase4/TASK2_READ_ADAPTER.md`; commit `b7eae50`.
 - Operations (chat list/search/message read UI/IPC) are **not implemented yet**;
-  they belong to Phase 4 Tasks 2–4.
+  they belong to Phase 4 Tasks 3–4. Send/Reply/Delete/Edit/Forward remain out of
+  scope for Task 2.

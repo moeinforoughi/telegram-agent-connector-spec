@@ -1,6 +1,6 @@
 # Phase 4 — Telegram Operations (Plan)
 
-Status: **In progress — Task 1 complete; Task 2 awaiting explicit approval.**
+Status: **In progress — Tasks 1–2 complete; Task 3 awaiting explicit approval.**
 Date: 2026-11-10
 Depends on: Phase 3 (COMPLETE FOR MVP)
 Scope source: `TASKS/05_TELEGRAM_OPERATIONS.md`, user direction 2026-11-10,
@@ -84,6 +84,7 @@ search, message list, and composer using read-only inspection. No writes.
 ### Task 2 — Per-account action queue and safe read helpers
 Add a small serialized queue per account and read-only helpers for chat list and
 message list. Bounded results; stop on UI change.
+**Status: COMPLETE (`b7eae50`) — report `docs/phase4/TASK2_READ_ADAPTER.md`.**
 
 ### Task 3 — IPC/preload/renderer read-only operations
 Add explicit read channels and a per-account operations panel (chat list,
@@ -156,7 +157,7 @@ Automated + live read-only results, limitations, handoff, report.
 | Task | Status |
 |---|---|
 | 1 — Plan/selector audit | **Done** (`363ea0a`); report `docs/phase4/TASK1_DOM_AUDIT.md` |
-| 2 — Action queue + read helpers | Not started; awaiting approval |
-| 3 — Read-only IPC/renderer | Not started |
+| 2 — Action queue + read helpers | **Done** (`b7eae50`); report `docs/phase4/TASK2_READ_ADAPTER.md` |
+| 3 — Read-only IPC/renderer | Not started; awaiting approval |
 | 4 — Live read-only validation | Not started |
 | 5–8 | Not started |
