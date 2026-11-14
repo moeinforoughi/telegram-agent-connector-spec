@@ -78,6 +78,42 @@ async function fixture(acknowledge = true): Promise<{ page: Page; adapter: Teleg
 }
 
 describe("Telegram messaging fixtures", () => {
+  it("allows the empty Stars badge mounted by WebK for ordinary sends", async () => {
+    const { page, adapter } = await fixture();
+    try {
+      await page.locator(".chat-input").evaluate((composer) => {
+        composer.insertAdjacentHTML(
+          "beforeend",
+          '<span class="btn-send-stars-badge stars-badge-base"><i style="display:inline-block;width:16px;height:16px"></i><span></span></span>',
+        );
+      });
+      await expect(adapter.submitMessage(operation)).resolves.toBe("42");
+    } finally {
+      await page.close();
+    }
+  });
+
+  it.each(["input-message-placeholder-stars", "is-ephemeral-composer"])(
+    "blocks the active %s marker",
+    async (marker) => {
+      const { page, adapter } = await fixture();
+      try {
+        await page.locator(".chat-input").evaluate((composer, marker) => {
+          const indicator = document.createElement("span");
+          indicator.className = marker;
+          indicator.hidden = true;
+          composer.append(indicator);
+        }, marker);
+        await expect(adapter.submitMessage(operation)).rejects.toMatchObject({
+          code: "TELEGRAM_UI_CHANGED",
+          message: "Telegram shows a paid or ephemeral send mode",
+        });
+        expect(await page.locator(".btn-send").getAttribute("data-clicks")).toBeNull();
+      } finally {
+        await page.close();
+      }
+    },
+  );
   it.each([false, true])(
     "checks whether a Stars badge is visible (visible=%s)",
     async (visible) => {

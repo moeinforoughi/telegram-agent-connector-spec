@@ -1,5 +1,14 @@
 # Latest Handoff — 2026-11-14
 
+## Stars badge and ephemeral-state guard
+
+Main baseline b11ea72. This checkpoint changes the composer, selector map,
+Chromium messaging tests and status docs. The latest live error identified
+the paid/ephemeral guard. Empty Stars badge markup no longer blocks ordinary
+sends. Active paid or ephemeral indicators continue to block submission.
+npm run check passed with 174 unit, 49 integration and 15 E2E tests.
+Next: relaunch and validate the approved Saved Messages send in the live UI.
+
 ## Existing composer draft
 
 Main baseline 3b0a186. This checkpoint changes the composer, Chromium

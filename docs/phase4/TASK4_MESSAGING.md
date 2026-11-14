@@ -15,6 +15,12 @@ exactly matches. Different drafts are preserved and reported explicitly.
 Reply still requires an empty composer before selecting its target. The
 generic initial composer error is split into control and helper failures.
 
+The next live attempt reported the paid/ephemeral guard. Public WebK source
+mounts an empty Stars badge in ordinary composers and adds a separate price
+placeholder for paid mode. The guard now blocks the paid placeholder, a
+visible badge with text, or the ephemeral state class. Fixture coverage
+includes an empty badge with layout and hidden semantic state markers.
+
 Baseline on main at 8c2fc1b was clean. npm run check passed with 164 unit,
 33 Chromium integration and 14 Electron E2E tests before implementation.
 

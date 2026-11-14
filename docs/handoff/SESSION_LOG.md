@@ -417,3 +417,10 @@
 - Main baseline 3b0a186. Composer, Chromium fixture and status docs updated.
 - npm run check passed: 174 unit, 46 integration and 15 E2E plus build checks.
 - Next: restart and repeat the manually approved Saved Messages test.
+
+## 2026-11-14 — Stars badge and ephemeral-state guard
+
+- Main baseline b11ea72. Composer, selectors, Chromium regressions and status
+  docs changed. Live error identified the paid/ephemeral pre-click check.
+- npm run check passed: 174 unit, 49 integration, 15 E2E plus build checks.
+- Live send remains pending. No real message was sent during this checkpoint.

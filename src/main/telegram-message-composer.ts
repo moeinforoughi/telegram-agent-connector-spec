@@ -123,8 +123,12 @@ export async function submitThroughComposer(
         )
           return "Telegram Send button is unavailable";
         if (
-          Array.from(chat.querySelectorAll(s.sendModifiers)).some((element) =>
-            element.checkVisibility({ visibilityProperty: true, opacityProperty: true }),
+          chat.matches(s.sendModifiers) ||
+          chat.querySelector(s.sendModifiers) ||
+          Array.from(chat.querySelectorAll(s.sendStarsBadge)).some(
+            (badge) =>
+              badge.textContent?.trim() &&
+              badge.checkVisibility({ visibilityProperty: true, opacityProperty: true }),
           )
         )
           return "Telegram shows a paid or ephemeral send mode";
