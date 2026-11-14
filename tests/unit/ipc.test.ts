@@ -23,6 +23,10 @@ describe("IPC allowlist", () => {
       IPC_CHANNELS.selectRecipient,
       IPC_CHANNELS.getChatMessages,
       IPC_CHANNELS.getUiHealth,
+      IPC_CHANNELS.prepareSend,
+      IPC_CHANNELS.prepareReply,
+      IPC_CHANNELS.confirmMessage,
+      IPC_CHANNELS.cancelMessage,
     ]);
   });
 

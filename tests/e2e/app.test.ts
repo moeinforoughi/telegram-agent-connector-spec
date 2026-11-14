@@ -1,11 +1,15 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 import { afterEach, describe, expect, it } from "vitest";
 import { APP_NAME } from "../../src/shared/constants";
 
 const projectRoot = process.cwd();
+const playwrightModuleUrl = pathToFileURL(
+  path.join(projectRoot, "node_modules/playwright/index.mjs"),
+).href;
 const packageVersion = (
   JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8")) as { version: string }
 ).version;
@@ -110,6 +114,10 @@ describe("Electron shell", () => {
       "selectRecipient",
       "getChatMessages",
       "getUiHealth",
+      "prepareSend",
+      "prepareReply",
+      "confirmMessage",
+      "cancelMessage",
       "onAccountStatus",
     ]);
     expect(renderer.hasIpcRenderer).toBe(false);
@@ -198,6 +206,106 @@ describe("Electron shell", () => {
     expect(await page.getByLabel("Include message text").isChecked()).toBe(false);
   });
 
+  it("prepares, cancels and confirms a synthetic message through desktop IPC", async () => {
+    const launched = await launchApp();
+    await launched.app.evaluate(
+      ({ dialog }, { html, url }) => {
+        const nodeModule = process.getBuiltinModule("node:module");
+        if (!nodeModule) throw new Error("Node module hooks are unavailable");
+        const stub = `
+        import playwright from ${JSON.stringify(url)};
+        export const chromium = {
+          async launchPersistentContext(directory, options) {
+            const context = await playwright.chromium.launchPersistentContext(directory, { ...options, headless: true });
+            await context.route("**/*", route => route.request().url() === "https://web.telegram.org/k/"
+              ? route.fulfill({ contentType: "text/html", body: ${JSON.stringify(html)} }) : route.abort());
+            return context;
+          }
+        };
+      `;
+        nodeModule.registerHooks({
+          resolve(specifier, context, next) {
+            if (specifier === "playwright") {
+              return {
+                shortCircuit: true,
+                url: "data:text/javascript," + encodeURIComponent(stub),
+              };
+            }
+            return next(specifier, context);
+          },
+        });
+        let nextResponse = 0;
+        Object.assign(dialog, {
+          showMessageBox: async (_window: unknown, options: { detail: string }) => {
+            if (
+              !options.detail.includes("Fixture message") ||
+              !options.detail.includes("Test peer (101)")
+            ) {
+              throw new Error("The native confirmation did not contain the reviewed operation");
+            }
+            return { response: nextResponse++, checkboxChecked: false };
+          },
+        });
+      },
+      {
+        url: playwrightModuleUrl,
+        html: `
+      <div id="page-chats">
+        <div id="column-left">
+          <div id="chatlist-container"><div class="chatlist-chat" data-peer-id="101">Test peer</div></div>
+          <input class="input-search-input">
+          <div class="search-super" hidden>
+            <div class="chatlist-chat" data-peer-id="101"><span class="peer-title">Test peer</span></div>
+            <div class="chatlist-chat" data-peer-id="102"><span class="peer-title">Other peer</span></div>
+          </div>
+        </div>
+        <div id="column-center"><div class="chat active">
+          <div class="topbar"><span class="peer-title" data-peer-id="101">Test peer</span></div>
+          <div class="bubbles"></div>
+          <div class="chat-input">
+            <div class="input-message-input" contenteditable="true"></div>
+            <button class="btn-send">Action</button>
+          </div>
+        </div></div>
+      </div>
+      <script>
+        const search = document.querySelector('input');
+        search.oninput = () => { document.querySelector('.search-super').hidden = !search.value; };
+        const input = document.querySelector('[contenteditable]');
+        const send = document.querySelector('.btn-send');
+        input.oninput = () => send.classList.toggle('send', !!input.innerText);
+        send.onclick = () => {
+          const bubble = document.createElement('div');
+          bubble.className = 'bubble is-out is-sent';
+          bubble.dataset.mid = '42';
+          const message = document.createElement('div');
+          message.className = 'message';
+          message.textContent = input.innerText;
+          bubble.append(message);
+          document.querySelector('.bubbles').append(bubble);
+        };
+      </script>
+    `,
+      },
+    );
+    const { page } = launched;
+    await page.getByLabel("New account label").fill("Fixture account");
+    await page.getByRole("button", { name: "Add Account" }).click();
+    await page.getByRole("button", { name: "Connect", exact: true }).click();
+    await page.getByText("Send or reply", { exact: true }).click({ timeout: 12_000 });
+    await page.getByLabel("Recipient name or username").fill("Test");
+    await page.getByLabel("Message text", { exact: true }).fill("Fixture message");
+    for (const action of ["Cancel preparation", "Review and confirm", "Review and confirm"]) {
+      await page.getByRole("button", { name: "Prepare", exact: true }).click();
+      await page.getByRole("button", { name: "Test peer (101)", exact: true }).click();
+      await page.getByRole("button", { name: action }).click();
+      await expect.poll(() => page.getByText("Working…", { exact: true }).count()).toBe(0);
+    }
+    await expect
+      .poll(() => page.getByText("Sent. Message ID 42.", { exact: true }).count())
+      .toBe(1);
+  }, 30_000);
+
   it("creates three isolated account entries from the dashboard", async () => {
     const launched = await launchApp();
 
@@ -205,7 +313,7 @@ describe("Electron shell", () => {
       await launched.page.getByLabel("New account label").fill(label);
       await launched.page.getByRole("button", { name: "Add Account" }).click();
       await expect
-        .poll(() => launched.page.getByRole("heading", { name: label }).count(), {
+        .poll(() => launched.page.getByRole("heading", { name: label, exact: true }).count(), {
           timeout: 5_000,
         })
         .toBe(1);

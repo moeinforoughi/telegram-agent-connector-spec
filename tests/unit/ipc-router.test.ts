@@ -66,7 +66,14 @@ function makeHandlers(): IpcHandlers {
         truncated: false,
       })),
       getUiHealth: vi.fn(async () => ({ status: "ready" as const, routes: [] })),
+      prepareSend: vi.fn(async () => ({ status: "ambiguous" as const, candidates: [] })),
+      prepareReply: vi.fn(async () => {
+        throw new Error("Unexpected fixture reply");
+      }),
+      confirmMessage: vi.fn(async () => ({ status: "cancelled" as const, operationId: "fixture" })),
+      cancelMessage: vi.fn(() => ({ status: "cancelled" as const, operationId: "fixture" })),
     },
+    approveMessage: vi.fn(async () => false),
   };
 }
 
@@ -108,7 +115,7 @@ describe("registerIpcHandlers", () => {
 
     registerIpcHandlers(window, makeHandlers());
 
-    expect(ipc.removeHandler).toHaveBeenCalledTimes(18);
+    expect(ipc.removeHandler).toHaveBeenCalledTimes(22);
     expect(ipc.handle.mock.calls.map(([channel]) => channel)).toEqual([
       "app:get-info",
       "account:list",
@@ -128,6 +135,10 @@ describe("registerIpcHandlers", () => {
       "telegram:select-recipient",
       "telegram:chat-messages",
       "telegram:ui-health",
+      "telegram:prepare-send",
+      "telegram:prepare-reply",
+      "telegram:confirm-message",
+      "telegram:cancel-message",
     ]);
   });
 
@@ -203,6 +214,25 @@ describe("registerIpcHandlers", () => {
     expect(handlers.telegram.searchChats).not.toHaveBeenCalled();
     await expect(search(makeEvent(mainFrame), request)).resolves.toEqual({ ok: true, data: [] });
     expect(handlers.telegram.searchChats).toHaveBeenCalledWith(view.id, "Alice", { limit: 3 });
+  });
+
+  it("validates operation references and supplies approval from Main", async () => {
+    const { window, mainFrame } = makeWindow();
+    const handlers = makeHandlers();
+    registerIpcHandlers(window, handlers);
+    const confirm = handlerFor("telegram:confirm-message");
+    const ref = { accountId: view.id, operationId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" };
+    await expect(confirm(makeEvent(mainFrame, 8), ref)).resolves.toMatchObject({
+      error: { code: "PERMISSION_DENIED" },
+    });
+    await expect(
+      confirm(makeEvent(mainFrame), { ...ref, operationId: "invalid" }),
+    ).resolves.toMatchObject({ error: { code: "INVALID_ARGUMENT" } });
+    expect(handlers.telegram.confirmMessage).not.toHaveBeenCalled();
+    await expect(
+      confirm(makeEvent(mainFrame), { ...ref, approved: true, text: "ignored" }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(handlers.telegram.confirmMessage).toHaveBeenCalledWith(ref, handlers.approveMessage);
   });
 
   it("validates create, rename and remove payloads", async () => {

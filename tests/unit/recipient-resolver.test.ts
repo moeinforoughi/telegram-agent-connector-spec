@@ -124,6 +124,17 @@ describe("RecipientResolver", () => {
     });
   });
 
+  it("ignores previous selection for operations requiring a fresh explicit choice", async () => {
+    const { resolver } = setup([alice, alice2]);
+    await resolver.select("a1", "alice", "1002");
+    await expect(resolver.resolve("a1", "alice", { usePreviousSelection: false })).resolves.toEqual(
+      {
+        status: "ambiguous",
+        candidates: [alice, alice2],
+      },
+    );
+  });
+
   it("rejects an invalid recipient id", async () => {
     const { resolver } = setup([alice]);
 
