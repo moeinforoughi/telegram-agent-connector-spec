@@ -127,11 +127,15 @@ export async function submitThroughComposer(
         if (chat.querySelector(s.sendPricePlaceholder))
           return "Telegram shows a Stars price in the composer placeholder";
         if (
-          Array.from(chat.querySelectorAll(s.sendStarsBadge)).some(
-            (badge) =>
-              badge.textContent?.trim() &&
+          Array.from(chat.querySelectorAll(s.sendStarsBadge)).some((badge) => {
+            // WebK mounts an icon-font glyph beside the optional price.
+            const label = badge.textContent?.replace(/\p{Co}/gu, "").trim();
+            return Boolean(
+              label &&
+              !/^0+$/u.test(label) &&
               badge.checkVisibility({ visibilityProperty: true, opacityProperty: true }),
-          )
+            );
+          })
         )
           return "Telegram shows a populated Stars badge on the Send control";
         if (args.replyId !== undefined) {

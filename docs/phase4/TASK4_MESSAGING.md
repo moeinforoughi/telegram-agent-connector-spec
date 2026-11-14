@@ -21,6 +21,14 @@ placeholder for paid mode. The guard now blocks the paid placeholder, a
 visible badge with text, or the ephemeral state class. Fixture coverage
 includes an empty badge with layout and hidden semantic state markers.
 
+A later live diagnostic singled out the populated badge branch. The
+screenshot showed the ordinary Send icon with no visible price. WebK
+constructs the badge with an icon and a separate amount span. The guard
+now disregards icon-font private-use characters and zero-only amounts.
+A nonempty amount or unknown label still blocks when visible. Explicit paid
+placeholder and ephemeral state checks still apply. The precise live
+badge contents were not captured. Retest on the rebuilt app.
+
 Baseline on main at 8c2fc1b was clean. npm run check passed with 164 unit,
 33 Chromium integration and 14 Electron E2E tests before implementation.
 

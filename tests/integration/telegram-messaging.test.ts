@@ -93,6 +93,24 @@ describe("Telegram messaging fixtures", () => {
     }
   });
 
+  it.each(["\uE001", "\uE001 0"])(
+    "ignores icon-only and zero-price Stars markup (%s)",
+    async (label) => {
+      const { page, adapter } = await fixture();
+      try {
+        await page.locator(".chat-input").evaluate((composer, label) => {
+          const badge = document.createElement("span");
+          badge.className = "btn-send-stars-badge";
+          badge.textContent = label;
+          composer.append(badge);
+        }, label);
+        await expect(adapter.submitMessage(operation)).resolves.toBe("42");
+      } finally {
+        await page.close();
+      }
+    },
+  );
+
   it.each(["input-message-placeholder-stars", "is-ephemeral-composer"])(
     "blocks the active %s marker",
     async (marker) => {
@@ -126,7 +144,7 @@ describe("Telegram messaging fixtures", () => {
           const badge = document.createElement("span");
           badge.className = "btn-send-stars-badge";
           badge.style.opacity = visible ? "1" : "0";
-          badge.textContent = "Stars";
+          badge.textContent = "\uE001 5";
           composer.append(badge);
         }, visible);
         if (visible) {

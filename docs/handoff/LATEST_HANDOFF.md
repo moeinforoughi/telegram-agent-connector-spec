@@ -1,5 +1,14 @@
 # Latest Handoff — 2026-11-14
 
+## Stars badge price text
+
+Branch main, baseline 3765fa5. Updated the composer badge check, Chromium
+fixtures and state docs. The screenshot showed no price; the live DOM badge
+text remains unverified. Icon-only and zero amounts pass the badge check.
+npm run check passed (174 unit, 51 integration, 15 E2E, typecheck, lint,
+format and build). Next: launch this checkpoint and verify Saved Messages
+with explicit native approval. No real message was sent in this checkpoint.
+
 ## Identify the live Send blocker
 
 Main baseline 10b8ce3. Live Saved Messages still fails after the Stars badge

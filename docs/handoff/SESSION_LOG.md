@@ -431,3 +431,9 @@
   and state docs. The failed live attempt is still undiagnosed.
 - npm run check passed: 174 unit, 49 integration, 15 E2E and build checks.
 - First next action: restart the rebuilt app and capture the specific marker.
+
+## 2026-11-14 — Stars badge price text
+
+- Main baseline 3765fa5. Composer, Chromium tests and status docs updated.
+- npm run check passed: 174 unit, 51 integration, 15 E2E plus build checks.
+- Live send remains pending. Next: relaunch for the approved manual test.
