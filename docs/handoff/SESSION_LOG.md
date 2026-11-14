@@ -404,3 +404,10 @@
 - Main baseline 6108dcc. Updated messaging preparation, service and adapter,
   the Chromium regression and docs. Confirmed Send can open search-only peers.
 - npm run check passed: 174 unit, 43 integration, 15 E2E. Live send pending.
+
+## 2026-11-14 — Final Send guard
+
+- Main baseline e7c7ce4. Updated composer, selector map, fixture tests and docs.
+- npm run check passed: 174 unit, 45 integration and 15 E2E plus build checks.
+- Exact live failure remains unverified. Restart and inspect the staged draft
+  before the next manual send test. No real message was sent in this checkpoint.

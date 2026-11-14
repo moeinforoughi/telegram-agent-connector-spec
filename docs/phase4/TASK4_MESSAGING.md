@@ -1,5 +1,15 @@
 # Phase 4 Task 4 — Confirmed Telegram text messaging
 
+### Final Send guard follow-up
+
+A live attempt opened Saved Messages and staged the text, then returned the
+generic composer error. The exact guard that rejected that attempt is unknown.
+WebK mounts a Stars badge in the composer and its stylesheet can hide it with
+opacity. The guard now distinguishes visually hidden badge elements from
+visible paid or ephemeral modes, rejects disabled Send controls, and reports
+the exact failing check without returning message contents. Chromium fixtures
+cover transparent and visible badges. Live verification remains pending.
+
 Baseline on main at 8c2fc1b was clean. npm run check passed with 164 unit,
 33 Chromium integration and 14 Electron E2E tests before implementation.
 

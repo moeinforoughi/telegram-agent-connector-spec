@@ -55,7 +55,7 @@ implied affiliation.
 
 Phase 4 Task 4 — confirmed text send/reply. See
 `docs/phase4/SAVED_MESSAGES_RESOLUTION.md` for the recipient regression and
-pending live validation of search-result navigation. For live verification, agree on
+pending live validation of the final Send guard. For live verification, agree on
 the exact account, chat and text for a controlled live smoke. Reply also needs
 an exact target message. See `docs/handoff/LATEST_HANDOFF.md` for the checkpoint,
 test evidence, changed files and limitations.

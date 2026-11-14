@@ -1,5 +1,15 @@
 # Latest Handoff — 2026-11-14
 
+## Final Send guard
+
+Main baseline e7c7ce4. This checkpoint changes the composer, selector map,
+Chromium messaging fixtures and docs. A live attempt staged text and hit the
+generic pre-click failure. The exact live guard was not captured. The update
+checks actual visibility of paid/ephemeral indicators and returns specific
+guard errors. npm run check passed with 174 unit, 45 integration and 15 E2E
+tests plus build checks. Next: restart and check for an existing Telegram draft
+before retrying the manual test. Live send remains pending.
+
 ## Confirmed search result navigation
 
 Branch main, baseline 6108dcc. This checkpoint changes MessageOperations,

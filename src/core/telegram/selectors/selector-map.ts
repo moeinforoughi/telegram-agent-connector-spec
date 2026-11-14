@@ -21,7 +21,7 @@ export const SELECTORS = {
   activeChatMessages: ".bubble[data-mid]",
   composer: '.chat-input .input-message-input[contenteditable="true"]',
   sendControl: ".chat-input button.btn-send",
-  plainSendControl: ".send:not(.has-ai-send-style):not(:disabled):not([aria-disabled=true])",
+  plainSendControl: ".send:not(.has-ai-send-style,.disabled,:disabled,[aria-disabled=true])",
   sendModifiers: ".btn-send-stars-badge:not(.hide), .is-ephemeral-composer",
   activeInputHelper: ".is-helper-active",
   replyHelper: ".reply-wrapper .reply-icon.reply",

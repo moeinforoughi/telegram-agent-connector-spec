@@ -74,7 +74,10 @@ export async function submitThroughComposer(
     await editor.fill(operation.text, { timeout });
     await chat
       .locator(`${SELECTORS.sendControl}${SELECTORS.plainSendControl}`)
-      .waitFor({ state: "visible", timeout });
+      .waitFor({ state: "visible", timeout })
+      .catch(() => {
+        throw new AppError("TELEGRAM_UI_CHANGED", "Telegram did not show a plain Send button");
+      });
     if (signal.aborted || Date.now() >= operation.expiresAt)
       throw new AppError("PERMISSION_DENIED", "Confirmation expired before submission");
     const expiresAt = Math.min(operation.expiresAt, deadline);
@@ -89,23 +92,24 @@ export async function submitThroughComposer(
         const peers = chat?.querySelectorAll(s.activeChatPeer);
         const buttons = chat?.querySelectorAll<HTMLElement>(s.sendControl);
         const button = buttons?.[0];
+        if (Date.now() >= args.expiresAt) return "Confirmation expired before clicking Send";
+        if (!chat || peers?.length !== 1 || peers[0]?.getAttribute("data-peer-id") !== args.chatId)
+          return "Active Telegram peer changed before clicking Send";
+        if (!(node instanceof HTMLElement) || !chat.contains(node) || node.innerText !== args.text)
+          return "Telegram editor or staged text changed before clicking Send";
         if (
-          Date.now() >= args.expiresAt ||
-          !chat ||
-          !chat.contains(node) ||
-          peers?.length !== 1 ||
-          peers[0]?.getAttribute("data-peer-id") !== args.chatId ||
           !button ||
           buttons?.length !== 1 ||
           !button.matches(s.plainSendControl) ||
-          !button.getClientRects().length ||
-          Array.from(chat.querySelectorAll(s.sendModifiers)).some(
-            (element) => element.getClientRects().length > 0,
-          ) ||
-          !(node instanceof HTMLElement) ||
-          node.innerText !== args.text
+          !button.checkVisibility({ visibilityProperty: true, opacityProperty: true })
         )
-          return null;
+          return "Telegram Send button is unavailable";
+        if (
+          Array.from(chat.querySelectorAll(s.sendModifiers)).some((element) =>
+            element.checkVisibility({ visibilityProperty: true, opacityProperty: true }),
+          )
+        )
+          return "Telegram shows a paid or ephemeral send mode";
         if (args.replyId !== undefined) {
           const replies = chat.querySelectorAll(s.replyHelper);
           const targets = Array.from(chat.querySelectorAll(s.activeChatMessages)).filter(
@@ -122,8 +126,9 @@ export async function submitThroughComposer(
             targets.length !== 1 ||
             targets[0]?.getAttribute("data-mid") !== args.replyId
           )
-            return null;
-        } else if (chat.matches(s.activeInputHelper)) return null;
+            return "Telegram reply target changed before clicking Send";
+        } else if (chat.matches(s.activeInputHelper))
+          return "Telegram shows an active composer helper";
         const existing = Array.from(chat.querySelectorAll(s.activeChatMessages), (row) =>
           row.getAttribute("data-mid"),
         );
@@ -132,9 +137,9 @@ export async function submitThroughComposer(
       },
       { selectors: SELECTORS, chatId, text, replyId, replyText, expiresAt },
     );
-    if (!previous) {
+    if (typeof previous === "string") {
       submissionState(false);
-      throw uiChanged();
+      throw new AppError("TELEGRAM_UI_CHANGED", previous);
     }
     const result = await page.waitForFunction(
       ({ s, chatId, text, replyId, previous }) => {

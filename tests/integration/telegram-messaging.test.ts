@@ -78,6 +78,32 @@ async function fixture(acknowledge = true): Promise<{ page: Page; adapter: Teleg
 }
 
 describe("Telegram messaging fixtures", () => {
+  it.each([false, true])(
+    "checks whether a Stars badge is visible (visible=%s)",
+    async (visible) => {
+      const { page, adapter } = await fixture();
+      try {
+        await page.locator(".chat-input").evaluate((composer, visible) => {
+          const badge = document.createElement("span");
+          badge.className = "btn-send-stars-badge";
+          badge.style.opacity = visible ? "1" : "0";
+          badge.textContent = "Stars";
+          composer.append(badge);
+        }, visible);
+        if (visible) {
+          await expect(adapter.submitMessage(operation)).rejects.toMatchObject({
+            code: "TELEGRAM_UI_CHANGED",
+            message: "Telegram shows a paid or ephemeral send mode",
+          });
+          expect(await page.locator(".btn-send").getAttribute("data-clicks")).toBeNull();
+        } else {
+          await expect(adapter.submitMessage(operation)).resolves.toBe("42");
+        }
+      } finally {
+        await page.close();
+      }
+    },
+  );
   it("opens the confirmed peer from search when it is absent from the sidebar", async () => {
     const { page, adapter } = await fixture();
     try {
