@@ -11,7 +11,7 @@ Before changing anything:
 3. Read `docs/handoff/LATEST_HANDOFF.md`.
 4. Skim `docs/handoff/SESSION_LOG.md` (append-only history).
 5. Read `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` (what is really built)
-   and `docs/phase4/TASK3_AGENT_INTERFACE.md`.
+   and `docs/phase4/TASK4_MESSAGING.md`.
 6. Read the active plan (`docs/phase4/PHASE4_PLAN.md`)
    and the task files it references.
 7. Inspect the real repository state:
@@ -34,10 +34,10 @@ Before changing anything:
 (`moein1`, `kaonashi`) are preserved for Phase 4. Never delete, reset, logout,
 remove, or commit their profiles/cookies/tokens; no personal data in the repo.
 
-**Phase 4 — Telegram Operations is in progress: Tasks 1–3 complete.** Task 3
-adds the agent-ready read contract and per-account diagnostics. Task 4 is
-controlled live validation and awaits separate approval. No message may be
-sent, edited, deleted, forwarded, or reacted to. MCP remains Phase 5.
+**Phase 4 — Telegram Operations is in progress: Tasks 1–4 implemented.** Task 4
+adds one-shot confirmed text send and reply. Live smoke still needs separate
+approval for each exact account, peer, message text and reply target.
+Task 5 and Phase 5 await separate approval.
 
 Read `docs/phase4/TASK1_DOM_AUDIT.md` and `docs/phase4/TASK2_READ_ADAPTER.md`
 for selectors, API, limits and limitations; `docs/phase4/PHASE4_REPORT.md` is the

@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-14 (Phase 4 Tasks 1–3 implemented)
+Last updated: 2026-11-14 (Phase 4 Tasks 1–4 implemented; live messaging smoke pending)
 
 ## Project Goal
 
@@ -48,14 +48,15 @@ implied affiliation.
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
 | 2 — Browser Manager, proxy, single account login | **COMPLETE FOR MVP** — deferred verifications accepted | `docs/phase2/PHASE2_REPORT.md` (§9.1); Tasks 1–8 and proxy fixes committed |
 | 3 — Multi-account management | **COMPLETE FOR MVP** — two live accounts PASS; third live account accepted as not tested | `docs/phase3/PHASE3_REPORT.md`, commits `d1107bc`, `7ed25a2` |
-| 4 — Telegram Operations | **In progress** — Tasks 1–3 complete; live validation awaits separate approval | `docs/phase4/PHASE4_PLAN.md`, `TASK3_AGENT_INTERFACE.md` |
+| 4 — Telegram Operations | **In progress** — Tasks 1–4 implemented; live messaging validation awaits explicit approval | `docs/phase4/PHASE4_PLAN.md`, `TASK4_MESSAGING.md` |
 | 5+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 4 Task 3 — agent-ready read-only interface. The next authorized work starts
-only after separate approval for Task 4. See `docs/handoff/LATEST_HANDOFF.md`
-for the branch, checkpoint, test evidence, changed files and limitations.
+Phase 4 Task 4 — confirmed text send/reply. First next action is to agree on
+the exact account, chat and text for a controlled live smoke. Reply also needs
+an exact target message. See `docs/handoff/LATEST_HANDOFF.md` for the checkpoint,
+test evidence, changed files and limitations.
 
 ## Session-Independent Development
 

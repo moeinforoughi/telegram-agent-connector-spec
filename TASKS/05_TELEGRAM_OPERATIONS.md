@@ -61,4 +61,9 @@ Priority: P1 | Depends on: TASK 03, TASK 04 | Commit: `feat(telegram): add safe 
 ## Phase 4 Task 3 Status (2026-11-14)
 
 See `docs/phase4/TASK3_AGENT_INTERFACE.md` for the service contract, diagnostics,
-recipient resolution, UI map and verification. Live validation is Task 4.
+recipient resolution, UI map and verification.
+
+## Phase 4 Task 4 Status (2026-11-14)
+
+See `docs/phase4/TASK4_MESSAGING.md` for one-shot confirmed text send and reply,
+verification, fixture coverage and the pending live smoke.

@@ -1,7 +1,7 @@
 # Phase 4 — Telegram Operations: Phase Report
 
-Status: **IN PROGRESS** — Tasks 1–3 implemented. Task 3 results and remaining
-limits are recorded in `TASK3_AGENT_INTERFACE.md`.
+Status: **IN PROGRESS** — Tasks 1–4 implemented. See `TASK3_AGENT_INTERFACE.md`
+and `TASK4_MESSAGING.md` for automated verification and live limitations.
 Last updated: 2026-11-11
 Plan: `docs/phase4/PHASE4_PLAN.md`
 
@@ -18,7 +18,7 @@ from Phase 3. Two tasks are done and committed:
 | 1 | Read-only DOM/selector audit with two real sessions | `363ea0a` |
 | 2 | Per-account action queue + read-only chat/message adapter | `b7eae50` |
 
-No write operation exists in the codebase: no send, reply, edit, delete,
+The Task 2 checkpoint contained no write operations: no send, reply, edit, delete,
 forward, or reaction. No real message content, chat title, cookie, token, phone
 number, or proxy credential is stored in the repository.
 
@@ -169,4 +169,6 @@ UI changed, account isolation, missing page.
 
 ## 11. Next task
 
-Task 4 is controlled live validation and requires separate approval.
+The pending validation is a controlled Task 4 live smoke. Get explicit
+approval for the exact account, destination, message text, and reply target
+before each live submission.

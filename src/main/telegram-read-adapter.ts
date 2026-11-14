@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import { AppError } from "../shared/errors";
+import type { PreparedMessage } from "../shared/messaging";
 import type { AgentChat, AgentMessage, TelegramMessageDirection } from "../shared/telegram";
 import {
   detectChatList,
@@ -12,6 +13,8 @@ import {
 import { SELECTORS } from "../core/telegram/selectors/selector-map";
 import { checkUiHealth, type UiHealth } from "../core/telegram/ui-map";
 import { AccountActionQueue } from "./account-action-queue";
+import { validatePeerId, validateMessageId } from "./message-operations";
+import { activePeer, replyTarget, submitThroughComposer } from "./telegram-message-composer";
 
 export type MessageDirection = TelegramMessageDirection;
 
@@ -207,6 +210,70 @@ export class TelegramReadAdapter {
   /** Light UI Map health check for the audited routes only. */
   async getUiHealth(accountId: string): Promise<UiHealth> {
     return this.queue(accountId).run((page) => checkUiHealth(createTelegramDomProbe(page)));
+  }
+
+  async inspectReply(accountId: string, chatId: string, messageId: string) {
+    validatePeerId(chatId);
+    validateMessageId(messageId);
+    return this.queue(accountId).run(async (page) => {
+      await this.requireMain(page);
+      const chat = activePeer(page, chatId);
+      if ((await chat.count()) !== 1) {
+        throw new AppError(
+          "CHAT_NOT_FOUND",
+          "Open the target chat in Telegram before preparing a reply",
+        );
+      }
+      const { text } = await replyTarget(chat, messageId, this.loadingTimeout);
+      const info = await this.readOpenChatInfo(page);
+      if (info.id !== chatId || !info.titleVisible || !info.title) {
+        throw new AppError("TELEGRAM_UI_CHANGED", "Reply destination could not be verified");
+      }
+      return {
+        recipient: { id: chatId, title: info.title, type: info.type },
+        targetPreview: text.slice(0, 240),
+      };
+    });
+  }
+
+  async submitMessage(operation: PreparedMessage, session?: object): Promise<string> {
+    const chatId = validatePeerId(operation.recipient.id);
+    if (operation.kind === "reply") validateMessageId(operation.messageId);
+    let possibleSubmission = false;
+    try {
+      return await this.queue(operation.accountId).run(async (page, signal) => {
+        if (session && page !== session)
+          throw new AppError("BROWSER_CLOSED", "The approved browser session changed");
+        const deadline =
+          Date.now() + (this.options.operationTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT);
+        if (Date.now() >= operation.expiresAt) {
+          throw new AppError("PERMISSION_DENIED", "Confirmation expired before execution");
+        }
+        await this.requireMain(page);
+        if ((await activePeer(page, chatId).count()) !== 1) {
+          await this.openChatPage(page, chatId);
+        }
+        const info = await this.readOpenChatInfo(page);
+        if (info.id !== chatId || !info.titleVisible || info.title !== operation.recipient.title) {
+          throw new AppError("TELEGRAM_UI_CHANGED", "Approved destination could not be verified");
+        }
+        return submitThroughComposer(
+          page,
+          operation,
+          signal,
+          this.loadingTimeout,
+          (possible) => {
+            possibleSubmission = possible;
+          },
+          deadline,
+        );
+      });
+    } catch (error) {
+      if (possibleSubmission)
+        throw new AppError("OUTCOME_UNKNOWN", "Telegram submission could not be verified");
+      if (error instanceof AppError) throw error;
+      throw new AppError("TELEGRAM_UI_CHANGED", "Telegram composer could not be verified");
+    }
   }
 
   async readVisibleMessages(

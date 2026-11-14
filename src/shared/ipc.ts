@@ -7,6 +7,14 @@ import type {
   SaveProxySettingsRequest,
 } from "./proxy";
 import type { AppInfo } from "./types";
+import type {
+  MessageOperationRef,
+  MessageOutcome,
+  PreparedMessage,
+  PrepareMessageResult,
+  ReplyMessageRequest,
+  SendMessageRequest,
+} from "./messaging";
 import type { AgentChat, AgentChatMessages, AgentRecipientResolution, UiHealth } from "./telegram";
 
 export const IPC_CHANNELS = {
@@ -28,6 +36,10 @@ export const IPC_CHANNELS = {
   selectRecipient: "telegram:select-recipient",
   getChatMessages: "telegram:chat-messages",
   getUiHealth: "telegram:ui-health",
+  prepareSend: "telegram:prepare-send",
+  prepareReply: "telegram:prepare-reply",
+  confirmMessage: "telegram:confirm-message",
+  cancelMessage: "telegram:cancel-message",
 } as const;
 
 export const IPC_EVENTS = {
@@ -53,6 +65,10 @@ export const IPC_ALLOWLIST = [
   IPC_CHANNELS.selectRecipient,
   IPC_CHANNELS.getChatMessages,
   IPC_CHANNELS.getUiHealth,
+  IPC_CHANNELS.prepareSend,
+  IPC_CHANNELS.prepareReply,
+  IPC_CHANNELS.confirmMessage,
+  IPC_CHANNELS.cancelMessage,
 ] as const;
 
 export type IpcChannel = (typeof IPC_ALLOWLIST)[number];
@@ -106,5 +122,9 @@ export type ConnectorApi = {
     request: ChatListRequest & { chatId: string; includeText?: boolean },
   ): Promise<IpcResult<AgentChatMessages>>;
   getUiHealth(request: AccountIdRequest): Promise<IpcResult<UiHealth>>;
+  prepareSend(request: SendMessageRequest): Promise<IpcResult<PrepareMessageResult>>;
+  prepareReply(request: ReplyMessageRequest): Promise<IpcResult<PreparedMessage>>;
+  confirmMessage(request: MessageOperationRef): Promise<IpcResult<MessageOutcome>>;
+  cancelMessage(request: MessageOperationRef): Promise<IpcResult<MessageOutcome>>;
   onAccountStatus(listener: (view: AccountView) => void): () => void;
 };

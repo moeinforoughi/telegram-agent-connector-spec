@@ -1,4 +1,9 @@
-# Implemented Architecture — Phase 0 through Phase 4 Task 3
+# Implemented Architecture — Phase 0 through Phase 4 Task 4
+
+Task 4 adds ephemeral message preparation in Main, native confirmation, and a
+WebZ composer adapter using the same account queue as reads. Verified outgoing
+bubbles complete submissions. Uncertain results are returned without retry.
+See `docs/phase4/TASK4_MESSAGING.md` and ADR-025.
 
 Phase 4 Task 3 adds the Main-owned TelegramService, RecipientResolver and
 audited UI map over the existing per-account Playwright adapter. The explicit

@@ -59,12 +59,19 @@ export class RecipientResolver {
     this.maxCacheEntries = options.maxCacheEntries ?? MAX_CACHE_ENTRIES;
   }
 
-  async resolve(accountId: string, query: string): Promise<RecipientResolution> {
+  async resolve(
+    accountId: string,
+    query: string,
+    options: { usePreviousSelection?: boolean } = {},
+  ): Promise<RecipientResolution> {
     const key = normalize(query);
     const cached = this.readCache(accountId, key);
     const candidates = await this.searchCandidates(accountId, key);
     const verified = candidates.find((candidate) => candidate.id === cached?.recipient.id);
-    if (verified && (cached?.selected || candidates.length === 1)) {
+    if (
+      verified &&
+      ((cached?.selected && options.usePreviousSelection !== false) || candidates.length === 1)
+    ) {
       return { status: "resolved", recipient: verified, source: "cache" };
     }
     this.cache.get(accountId)?.delete(key);

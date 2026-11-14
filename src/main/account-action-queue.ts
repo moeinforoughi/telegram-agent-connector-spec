@@ -11,7 +11,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout: () =>
     const timer = setTimeout(() => {
       onTimeout();
       reject(
-        new AppError("TIMEOUT", "Telegram read operation timed out", {
+        new AppError("TIMEOUT", "Telegram operation timed out", {
           retryable: true,
         }),
       );
@@ -50,7 +50,10 @@ export class AccountActionQueue {
     this.timeoutMs = options.timeoutMs ?? 15_000;
   }
 
-  run<T>(task: (page: Page) => Promise<T>, timeoutMs = this.timeoutMs): Promise<T> {
+  run<T>(
+    task: (page: Page, signal: AbortSignal) => Promise<T>,
+    timeoutMs = this.timeoutMs,
+  ): Promise<T> {
     const execute = async (): Promise<T> => {
       const page = this.getPage();
       if (!page || page.isClosed()) {
@@ -65,7 +68,11 @@ export class AccountActionQueue {
           { retryable: true },
         );
       }
-      return withTimeout(task(page), timeoutMs, () => this.timedOutPages.add(page));
+      const deadline = new AbortController();
+      return withTimeout(task(page, deadline.signal), timeoutMs, () => {
+        this.timedOutPages.add(page);
+        deadline.abort();
+      });
     };
 
     const result = this.tail.then(execute, execute);

@@ -12,6 +12,7 @@ import {
 } from "../../shared/proxy";
 import type { AppInfo } from "../../shared/types";
 import { TelegramDiagnostics } from "./TelegramDiagnostics";
+import { TelegramMessaging } from "./TelegramMessaging";
 
 const STATUS_LABELS: Record<AccountStatus, string> = {
   disconnected: "Disconnected",
@@ -471,6 +472,7 @@ export function App() {
               </button>
             </div>
             <TelegramDiagnostics key={`${id}:${account.status}`} id={id} />
+            {account.status === "connected" && <TelegramMessaging accountId={id} />}
           </section>
         );
       })}

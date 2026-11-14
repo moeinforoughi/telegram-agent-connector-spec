@@ -9,6 +9,12 @@ import {
 } from "../shared/telegram";
 import type { RecipientResolver } from "./recipient-resolver";
 import type { TelegramReadAdapter } from "./telegram-read-adapter";
+import type {
+  MessageOperationRef,
+  ReplyMessageRequest,
+  SendMessageRequest,
+} from "../shared/messaging";
+import { MessageOperations, type ApproveMessage } from "./message-operations";
 
 export type TelegramServiceDeps = {
   readonly listAccounts: () => readonly AccountView[];
@@ -17,6 +23,8 @@ export type TelegramServiceDeps = {
     "listChats" | "searchChats" | "readChatMessages" | "getUiHealth"
   >;
   readonly resolver: Pick<RecipientResolver, "resolve" | "select">;
+  readonly messaging?: Pick<TelegramReadAdapter, "inspectReply" | "submitMessage">;
+  readonly messageSession?: (id: string) => object | undefined;
 };
 
 function agentLimit(value: number | undefined, fallback: number, maximum: number): number {
@@ -34,9 +42,51 @@ function agentLimit(value: number | undefined, fallback: number, maximum: number
  */
 export class TelegramService {
   private readonly deps: TelegramServiceDeps;
+  private readonly messaging: MessageOperations | undefined;
 
   constructor(deps: TelegramServiceDeps) {
     this.deps = deps;
+    const adapter = deps.messaging;
+    if (adapter) {
+      this.messaging = new MessageOperations({
+        accountLabel: (id) => {
+          const account = this.requireAccount(id);
+          if (account.status !== "connected") {
+            throw new AppError(
+              "ACCOUNT_NOT_CONNECTED",
+              "Connect this account before preparing a message",
+            );
+          }
+          return account.label;
+        },
+        resolve: (id, query) => deps.resolver.resolve(id, query, { usePreviousSelection: false }),
+        select: (id, query, peer) => this.selectRecipient(id, query, peer),
+        inspectReply: (id, chat, message) => adapter.inspectReply(id, chat, message),
+        execute: (operation, session) => adapter.submitMessage(operation, session),
+        ...(deps.messageSession ? { session: deps.messageSession } : {}),
+      });
+    }
+  }
+
+  prepareSend(request: SendMessageRequest) {
+    return this.messageOperations.prepareSend(request);
+  }
+
+  prepareReply(request: ReplyMessageRequest) {
+    return this.messageOperations.prepareReply(request);
+  }
+
+  confirmMessage(ref: MessageOperationRef, approve: ApproveMessage) {
+    return this.messageOperations.confirm(ref, approve);
+  }
+
+  cancelMessage(ref: MessageOperationRef) {
+    return this.messageOperations.cancel(ref);
+  }
+
+  private get messageOperations(): MessageOperations {
+    if (!this.messaging) throw new AppError("UNSUPPORTED_OPERATION", "Messaging is unavailable");
+    return this.messaging;
   }
 
   getAccounts(): AccountView[] {

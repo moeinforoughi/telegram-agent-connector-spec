@@ -21,6 +21,10 @@ const api: ConnectorApi = {
   selectRecipient: (request) => ipcRenderer.invoke(IPC_CHANNELS.selectRecipient, request),
   getChatMessages: (request) => ipcRenderer.invoke(IPC_CHANNELS.getChatMessages, request),
   getUiHealth: (request) => ipcRenderer.invoke(IPC_CHANNELS.getUiHealth, request),
+  prepareSend: (request) => ipcRenderer.invoke(IPC_CHANNELS.prepareSend, request),
+  prepareReply: (request) => ipcRenderer.invoke(IPC_CHANNELS.prepareReply, request),
+  confirmMessage: (request) => ipcRenderer.invoke(IPC_CHANNELS.confirmMessage, request),
+  cancelMessage: (request) => ipcRenderer.invoke(IPC_CHANNELS.cancelMessage, request),
   onAccountStatus: (listener) => {
     const handler = (_event: unknown, view: AccountView): void => listener(view);
     ipcRenderer.on(IPC_EVENTS.accountStatus, handler);

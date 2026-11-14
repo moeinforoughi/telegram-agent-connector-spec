@@ -92,17 +92,18 @@ bounded DTOs, a limited UI map, and explicit IPC/preload methods with a local
 diagnostics panel. Verify the active chat before extracting messages and
 quarantine pages after queue deadlines. See `TASK3_AGENT_INTERFACE.md`.
 
-### Task 4 — Live read-only validation with the two preserved sessions
-Use `moein1` and `kaonashi`; read a small chat list and a few messages. Do not
-send/edit/delete. Record sanitized results (counts and statuses only).
+### Task 4 — Confirmed text send and reply
+Prepare an exact recipient and message, confirm once in the desktop dialog,
+and verify the new outgoing message in WebZ. Exercise workflows in local
+fixtures. A live send/reply smoke requires separate approval for each exact
+action. See `TASK4_MESSAGING.md`.
 
 ### Task 5 — Low-risk write operations (after approval)
 Archive/Mute/Pin with UI confirmation and post-action verification, if the UI
 supports them.
 
-### Task 6 — Send/Reply design and gated implementation (separate approval)
-Only after explicit approval: design, confirm-before-send in UI, post-send
-verification, no retries on ambiguous outcome.
+### Task 6 — Reserved
+Send and reply moved to Task 4.
 
 ### Task 7 — Channel view/manage
 Read-only channel info first; management actions need their own approval.
@@ -161,5 +162,5 @@ Automated + live read-only results, limitations, handoff, report.
 | 1 — Plan/selector audit | **Done** (`363ea0a`); report `docs/phase4/TASK1_DOM_AUDIT.md` |
 | 2 — Action queue + read helpers | **Done** (`b7eae50`); report `docs/phase4/TASK2_READ_ADAPTER.md` |
 | 3 — Agent-ready read-only interface | Implemented; see `TASK3_AGENT_INTERFACE.md` |
-| 4 — Live read-only validation | Awaiting separate approval |
+| 4 — Confirmed text send and reply | Implemented; live smoke awaits explicit approval |
 | 5–8 | Not started |

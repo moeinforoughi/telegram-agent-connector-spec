@@ -22,6 +22,8 @@ import type {
 import type { AppInfo } from "../shared/types";
 import { runIpcHandler } from "./ipc-result";
 import type { TelegramService } from "./telegram-service";
+import { MAX_MESSAGE_LENGTH } from "../shared/messaging";
+import type { ApproveMessage } from "./message-operations";
 import { isTrustedSender } from "./trusted-sender";
 
 const PERMISSION_DENIED: SerializedError = {
@@ -42,6 +44,7 @@ export type IpcHandlers = {
   readonly getProxySettings: () => Promise<ProxySettingsView>;
   readonly saveProxySettings: (request: SaveProxySettingsRequest) => Promise<ProxySettingsView>;
   readonly testProxy: (request: ProxyTestRequest) => Promise<ProxyTestResult>;
+  readonly approveMessage: ApproveMessage;
   readonly telegram: Pick<
     TelegramService,
     | "getAccountStatus"
@@ -51,6 +54,10 @@ export type IpcHandlers = {
     | "selectRecipient"
     | "getChatMessages"
     | "getUiHealth"
+    | "prepareSend"
+    | "prepareReply"
+    | "confirmMessage"
+    | "cancelMessage"
   >;
 };
 
@@ -206,7 +213,43 @@ function runHandler(handlers: IpcHandlers, channel: IpcChannel, payload: unknown
     }
     case IPC_CHANNELS.getUiHealth:
       return handlers.telegram.getUiHealth(telegramString(payload, "id", 128));
+    case IPC_CHANNELS.prepareSend: {
+      const selected = asRecord(payload).recipientId;
+      return handlers.telegram.prepareSend({
+        accountId: telegramString(payload, "accountId", 128),
+        recipientQuery: telegramString(payload, "recipientQuery", 200),
+        ...(selected === undefined
+          ? {}
+          : { recipientId: telegramString(payload, "recipientId", 20) }),
+        text: messageText(payload),
+      });
+    }
+    case IPC_CHANNELS.prepareReply:
+      return handlers.telegram.prepareReply({
+        accountId: telegramString(payload, "accountId", 128),
+        chatId: telegramString(payload, "chatId", 21),
+        messageId: telegramString(payload, "messageId", 20),
+        text: messageText(payload),
+      });
+    case IPC_CHANNELS.confirmMessage:
+      return handlers.telegram.confirmMessage(messageRef(payload), handlers.approveMessage);
+    case IPC_CHANNELS.cancelMessage:
+      return handlers.telegram.cancelMessage(messageRef(payload));
   }
+}
+
+function messageText(payload: unknown): string {
+  const { text } = asRecord(payload);
+  if (typeof text !== "string" || !text.trim() || text.length > MAX_MESSAGE_LENGTH)
+    throw invalidArgument();
+  return text;
+}
+
+function messageRef(payload: unknown) {
+  const operationId = telegramString(payload, "operationId", 36);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId))
+    throw invalidArgument();
+  return { operationId, accountId: telegramString(payload, "accountId", 128) };
 }
 
 async function handleTrusted<T>(

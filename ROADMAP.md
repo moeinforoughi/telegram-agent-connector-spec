@@ -17,7 +17,8 @@
 ## Phase 4 — Safe Telegram Web Operations
 عملیات UI کم‌ریسک و غیرمحتوایی. خروجی: وضعیت اکانت، فهرست محدود چت‌ها و عملیات آرشیو/Pin/Mute در صورت پشتیبانی.
 Tasks 1–3 deliver the selector audit, per-account read adapter, and agent-ready
-read interface. Task 4 is the separately approved live validation checkpoint.
+read interface. Task 4 adds confirmed text send and reply. Live smoke requires
+separate approval for each exact message.
 See `docs/phase4/PHASE4_PLAN.md`.
 
 ## Phase 5 — MCP Bridge
@@ -34,7 +35,8 @@ Phase 5, after separate approval.
 ## Phase 8 — Optional Features
 
 Post-MVP candidates include settings/privacy automation, advanced contact
-management, full group and channel administration, and message editing/deletion.
+management, full group and channel administration, media and file sending,
+voice and video, forwarding, editing, deletion, reactions and scheduled messages.
 Generic automation, full or periodic UI scans, dynamic workflow builders, full
 Bot API parity and bulk messaging are excluded from the product roadmap.
 فقط بعد از تأیید MVP: ابزارهای بیشتر مدیریت چت، Policy پیشرفته، Auto-start، Auto-update، Windows 10/macOS/Linux. AI Content Processing فقط در صورت حل کامل Compliance/Consent.

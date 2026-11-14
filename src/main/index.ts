@@ -1,5 +1,5 @@
 import path from "node:path";
-import { app, type BrowserWindow } from "electron";
+import { app, dialog, type BrowserWindow } from "electron";
 import { AccountStore } from "../core/account/account-store";
 import { BrowserManager } from "../core/browser/browser-manager";
 import { createPlaywrightLauncher } from "../core/browser/browser-factory";
@@ -99,7 +99,13 @@ function createServices(): {
     log: (message) => console.error(`[account] ${message}`),
   });
 
-  const telegram = new TelegramService({ listAccounts: () => manager.list(), adapter, resolver });
+  const telegram = new TelegramService({
+    listAccounts: () => manager.list(),
+    adapter,
+    resolver,
+    messaging: adapter,
+    messageSession: (id) => manager.getPage(id),
+  });
   return { manager, proxy, telegram };
 }
 
@@ -153,6 +159,28 @@ if (!hasSingleInstanceLock) {
       registerIpcHandlers(mainWindow, {
         getAppInfo,
         telegram: services.telegram,
+        approveMessage: async (operation) => {
+          if (!mainWindow || !mainWindow.isFocused()) return false;
+          const result = await dialog.showMessageBox(mainWindow, {
+            type: "question",
+            title: "Confirm Telegram message",
+            message: operation.kind === "reply" ? "Send this reply?" : "Send this message?",
+            detail: [
+              `Account: ${operation.accountLabel} (${operation.accountId})`,
+              `Chat: ${operation.recipient.title} (${operation.recipient.id})`,
+              ...(operation.kind === "reply"
+                ? [`Reply to message ${operation.messageId}`, operation.targetPreview]
+                : []),
+              "",
+              operation.text,
+            ].join("\n"),
+            buttons: ["Cancel", "Send once"],
+            defaultId: 0,
+            cancelId: 0,
+            noLink: true,
+          });
+          return result.response === 1;
+        },
         listAccounts: () => services.manager.list(),
         createAccount: (request) => services.manager.create(request.label),
         renameAccount: (request) => services.manager.rename(request.id, request.label),

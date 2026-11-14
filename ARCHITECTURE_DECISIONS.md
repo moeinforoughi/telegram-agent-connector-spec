@@ -1,5 +1,14 @@
 # Architecture Decision Records (ADR)
 
+## ADR-025 — One-shot confirmation for Telegram text messages
+
+The Telegram service prepares immutable, short-lived send/reply operations in
+Main memory. The desktop IPC confirmation opens a native dialog showing the
+exact account, peer, reply target and text. Its affirmative response consumes
+the operation before execution. The existing per-account queue owns navigation,
+composer interaction and verification. A possible submission without verified
+acknowledgement returns an unknown outcome and is never retried automatically.
+
 ## ADR-024 — Agent-first, low-token Telegram reads
 
 Electron Main owns a transport-independent Telegram service backed by the existing
