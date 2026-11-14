@@ -126,66 +126,70 @@ export class TelegramReadAdapter {
       DEFAULT_MAX_CHATS,
       this.options.maxChats ?? DEFAULT_MAX_CHATS,
     );
-    return this.queue(accountId).run(async (page) => {
-      await this.requireMain(page);
-      const input = page.locator(`input${SELECTORS.searchInput[0]}:visible`);
-      if ((await input.count()) !== 1) {
-        throw new AppError("TELEGRAM_UI_CHANGED", "Search input was not found", {
-          retryable: true,
-        });
-      }
+    return this.queue(accountId).run((page) =>
+      this.withSearch(page, text, () =>
+        this.readChatRows(page, limit, `${SELECTORS.searchResultRows[0]}:visible`, true),
+      ),
+    );
+  }
+
+  private async withSearch<T>(page: Page, text: string, action: () => Promise<T>): Promise<T> {
+    await this.requireMain(page);
+    const input = page.locator(`input${SELECTORS.searchInput[0]}:visible`);
+    if ((await input.count()) !== 1) {
+      throw new AppError("TELEGRAM_UI_CHANGED", "Search input was not found", {
+        retryable: true,
+      });
+    }
+    if (await input.inputValue({ timeout: this.loadingTimeout })) {
+      throw new AppError("INVALID_ARGUMENT", "Clear the active Telegram search before retrying");
+    }
+    const outcome = page.locator(SELECTORS.searchOutcome).first();
+    if (await outcome.isVisible()) {
+      throw new AppError("TELEGRAM_UI_CHANGED", "Previous search results are still visible", {
+        retryable: true,
+      });
+    }
+    try {
+      await input.click({ timeout: this.loadingTimeout });
       if (await input.inputValue({ timeout: this.loadingTimeout })) {
-        throw new AppError("INVALID_ARGUMENT", "Clear the active Telegram search before retrying");
+        throw new AppError("TELEGRAM_UI_CHANGED", "Search input changed while opening");
       }
-      const outcome = page.locator(SELECTORS.searchOutcome).first();
-      if (await outcome.isVisible()) {
-        throw new AppError("TELEGRAM_UI_CHANGED", "Previous search results are still visible", {
-          retryable: true,
-        });
+      if (
+        !(await input.evaluate((field) => field === document.activeElement, undefined, {
+          timeout: this.loadingTimeout,
+        }))
+      ) {
+        throw new AppError("TELEGRAM_UI_CHANGED", "Telegram search did not receive focus");
       }
-      try {
-        await input.click({ timeout: this.loadingTimeout });
-        if (await input.inputValue({ timeout: this.loadingTimeout })) {
-          throw new AppError("TELEGRAM_UI_CHANGED", "Search input changed while opening");
-        }
-        if (
-          !(await input.evaluate((field) => field === document.activeElement, undefined, {
-            timeout: this.loadingTimeout,
-          }))
-        ) {
-          throw new AppError("TELEGRAM_UI_CHANGED", "Telegram search did not receive focus");
-        }
-        await page.keyboard.insertText(text);
-        if ((await input.inputValue({ timeout: this.loadingTimeout })) !== text) {
-          throw new AppError("TELEGRAM_UI_CHANGED", "Telegram did not retain the search query");
-        }
-        await outcome
-          .waitFor({
-            state: "visible",
-            timeout: this.loadingTimeout,
-          })
-          .catch(() => {
-            throw new AppError("TELEGRAM_UI_CHANGED", "Search results could not be verified", {
-              retryable: true,
-            });
+      await page.keyboard.insertText(text);
+      if ((await input.inputValue({ timeout: this.loadingTimeout })) !== text) {
+        throw new AppError("TELEGRAM_UI_CHANGED", "Telegram did not retain the search query");
+      }
+      await outcome
+        .waitFor({
+          state: "visible",
+          timeout: this.loadingTimeout,
+        })
+        .catch(() => {
+          throw new AppError("TELEGRAM_UI_CHANGED", "Search results could not be verified", {
+            retryable: true,
           });
-        const rows = await this.readChatRows(
-          page,
-          limit,
-          `${SELECTORS.searchResultRows[0]}:visible`,
-          true,
+        });
+      if ((await input.inputValue({ timeout: this.loadingTimeout })) !== text) {
+        throw new AppError(
+          "TELEGRAM_UI_CHANGED",
+          "Telegram search query changed before results were read",
         );
-        if ((await input.inputValue({ timeout: this.loadingTimeout })) !== text) {
-          throw new AppError(
-            "TELEGRAM_UI_CHANGED",
-            "Telegram search query changed before results were read",
-          );
-        }
-        return rows;
-      } finally {
+      }
+      return await action();
+    } finally {
+      if (
+        (await input.inputValue({ timeout: this.loadingTimeout }).catch(() => undefined)) === text
+      ) {
         await input.fill("", { timeout: this.loadingTimeout }).catch(() => undefined);
       }
-    });
+    }
   }
 
   async getChatListState(accountId: string): Promise<ChatListState> {
@@ -262,7 +266,11 @@ export class TelegramReadAdapter {
     });
   }
 
-  async submitMessage(operation: PreparedMessage, session?: object): Promise<string> {
+  async submitMessage(
+    operation: PreparedMessage,
+    session?: object,
+    query?: string,
+  ): Promise<string> {
     const chatId = validatePeerId(operation.recipient.id);
     if (operation.kind === "reply") validateMessageId(operation.messageId);
     let possibleSubmission = false;
@@ -277,7 +285,35 @@ export class TelegramReadAdapter {
         }
         await this.requireMain(page);
         if ((await activePeer(page, chatId).count()) !== 1) {
-          await this.openChatPage(page, chatId);
+          const sidebarRow = page.locator(
+            `${SELECTORS.chatRows[0]}[data-peer-id="${chatId}"]:visible`,
+          );
+          if (
+            operation.kind === "send" &&
+            query !== undefined &&
+            (await sidebarRow.count()) === 0
+          ) {
+            await this.withSearch(page, query, async () => {
+              const row = page.locator(
+                `${SELECTORS.searchResultRows[0]}[data-peer-id="${chatId}"]:visible`,
+              );
+              if ((await row.count()) !== 1) {
+                throw new AppError(
+                  "CHAT_NOT_FOUND",
+                  "The confirmed peer was not uniquely present in search results",
+                );
+              }
+              if (signal.aborted || Date.now() >= operation.expiresAt) {
+                throw new AppError(
+                  "PERMISSION_DENIED",
+                  "Confirmation expired before opening the chat",
+                );
+              }
+              await this.openVerifiedRow(page, row, chatId);
+            });
+          } else {
+            await this.openChatPage(page, chatId);
+          }
         }
         const info = await this.readOpenChatInfo(page);
         const self =
@@ -446,6 +482,15 @@ export class TelegramReadAdapter {
     if ((await row.count()) !== 1) {
       throw new AppError("CHAT_NOT_FOUND", "Chat was not found in the current list");
     }
+    await this.openVerifiedRow(page, row, chatId);
+    return this.readOpenChatInfo(page);
+  }
+
+  private async openVerifiedRow(
+    page: Page,
+    row: ReturnType<Page["locator"]>,
+    chatId: string,
+  ): Promise<void> {
     await row.click({ timeout: this.loadingTimeout });
     await page
       .locator(SELECTORS.activeChat)
@@ -456,7 +501,6 @@ export class TelegramReadAdapter {
           retryable: true,
         });
       });
-    return this.readOpenChatInfo(page);
   }
 
   private async readOpenChatInfo(page: Page): Promise<OpenChatInfo> {

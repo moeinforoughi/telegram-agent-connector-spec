@@ -22,7 +22,11 @@ type Dependencies = {
     chatId: string,
     messageId: string,
   ) => Promise<{ recipient: AgentRecipient; targetPreview: string }>;
-  readonly execute: (operation: PreparedMessage, session?: object) => Promise<string>;
+  readonly execute: (
+    operation: PreparedMessage,
+    session?: object,
+    query?: string,
+  ) => Promise<string>;
   readonly session?: (id: string) => object | undefined;
   readonly now?: () => number;
 };
@@ -58,7 +62,7 @@ function validateText(text: string): string {
 export class MessageOperations {
   private readonly pending = new Map<
     string,
-    { operation: PreparedMessage; session: object | undefined }
+    { operation: PreparedMessage; session: object | undefined; query: string | undefined }
   >();
   private readonly approvingAccounts = new Set<string>();
   private readonly preparing = new Set<string>();
@@ -87,6 +91,7 @@ export class MessageOperations {
       return this.remember(
         { ...this.base(accountId, accountLabel, text, resolution.recipient), kind: "send" },
         session,
+        query,
       );
     });
   }
@@ -129,7 +134,7 @@ export class MessageOperations {
         "A confirmation is already in progress for this account",
       );
     }
-    const { operation, session } = this.take(ref);
+    const { operation, session, query } = this.take(ref);
     const { operationId, accountId } = operation;
     this.approvingAccounts.add(accountId);
     try {
@@ -138,7 +143,10 @@ export class MessageOperations {
         throw this.unavailable();
       try {
         this.deps.accountLabel(accountId);
-        const messageId = await this.deps.execute(operation, session);
+        const messageId =
+          query === undefined
+            ? await this.deps.execute(operation, session)
+            : await this.deps.execute(operation, session, query);
         return { status: "sent", accountId, chatId: operation.recipient.id, messageId };
       } catch (error) {
         if (error instanceof AppError && error.code === "OUTCOME_UNKNOWN") {
@@ -187,12 +195,16 @@ export class MessageOperations {
     }
   }
 
-  private remember(operation: PreparedMessage, session: object | undefined): PreparedMessage {
+  private remember(
+    operation: PreparedMessage,
+    session: object | undefined,
+    query?: string,
+  ): PreparedMessage {
     if (this.deps.session?.(operation.accountId) !== session) throw this.unavailable();
     if (this.pending.size >= MAX_PENDING)
       throw new AppError("INVALID_ARGUMENT", "Too many pending confirmations");
     Object.freeze(operation);
-    this.pending.set(operation.operationId, { operation, session });
+    this.pending.set(operation.operationId, { operation, session, query });
     return operation;
   }
 

@@ -398,3 +398,9 @@
 - Changed the read adapter, selector map, Chromium regression test and docs.
 - npm run check passed: 174 unit, 42 integration, 15 E2E and build checks.
 - Live verification on the rebuilt app is next. No real message was sent.
+
+## 2026-11-14 — Confirmed search result navigation
+
+- Main baseline 6108dcc. Updated messaging preparation, service and adapter,
+  the Chromium regression and docs. Confirmed Send can open search-only peers.
+- npm run check passed: 174 unit, 43 integration, 15 E2E. Live send pending.

@@ -45,3 +45,14 @@ and extraction both exclude those groups, sponsored rows and message hits.
 A Chromium regression fixture shows recent rows as soon as search receives
 focus and delays the actual query results. Live preparation with the rebuilt
 app is still pending.
+
+## Opening a confirmed search result
+
+The user confirmed that live preparation found Saved Messages. Submission
+then returned CHAT_NOT_FOUND because it only looked for the approved peer in
+the visible sidebar. The original search query now stays in the one-use Main
+operation. If the sidebar row is absent, confirmed Send searches again and
+opens the unique row with the approved peer ID. The active header must still
+match that ID before composer interaction. Reply uses its existing route.
+The Chromium regression covers a peer available only through search and a
+second result with the same title. Live submission remains pending.

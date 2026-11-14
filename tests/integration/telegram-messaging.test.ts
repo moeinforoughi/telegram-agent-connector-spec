@@ -78,6 +78,38 @@ async function fixture(acknowledge = true): Promise<{ page: Page; adapter: Teleg
 }
 
 describe("Telegram messaging fixtures", () => {
+  it("opens the confirmed peer from search when it is absent from the sidebar", async () => {
+    const { page, adapter } = await fixture();
+    try {
+      await page.evaluate(() => {
+        const chat = document.querySelector(".chat")!;
+        chat.classList.remove("active");
+        document.querySelector("#page-chats")!.insertAdjacentHTML(
+          "afterbegin",
+          `
+          <div id="column-left"><input class="input-search-input">
+          <div class="search-super" hidden>
+            <button class="chatlist-chat" data-peer-id="101"><span class="peer-title">Test</span></button>
+            <button class="chatlist-chat" data-peer-id="102"><span class="peer-title">Test</span></button>
+          </div></div>`,
+        );
+        const search = document.querySelector<HTMLInputElement>(".input-search-input")!;
+        const panel = document.querySelector<HTMLElement>(".search-super")!;
+        search.oninput = () => {
+          panel.hidden = search.value !== "test";
+        };
+        panel.querySelector<HTMLButtonElement>('[data-peer-id="101"]')!.onclick = () => {
+          chat.classList.add("active");
+          panel.hidden = true;
+          search.value = "";
+        };
+      });
+      await expect(adapter.submitMessage(operation, undefined, "test")).resolves.toBe("42");
+      expect(await page.locator(".btn-send").getAttribute("data-clicks")).toBe("1");
+    } finally {
+      await page.close();
+    }
+  });
   it("accepts a different header title only for a self recipient with the same active peer", async () => {
     const { page, adapter } = await fixture();
     const self = {

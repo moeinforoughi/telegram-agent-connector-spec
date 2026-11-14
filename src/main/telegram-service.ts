@@ -62,7 +62,7 @@ export class TelegramService {
         resolve: (id, query) => deps.resolver.resolve(id, query, { usePreviousSelection: false }),
         select: (id, query, peer) => this.selectRecipient(id, query, peer),
         inspectReply: (id, chat, message) => adapter.inspectReply(id, chat, message),
-        execute: (operation, session) => adapter.submitMessage(operation, session),
+        execute: (operation, session, query) => adapter.submitMessage(operation, session, query),
         ...(deps.messageSession ? { session: deps.messageSession } : {}),
       });
     }

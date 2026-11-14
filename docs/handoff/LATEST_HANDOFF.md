@@ -1,5 +1,15 @@
 # Latest Handoff — 2026-11-14
 
+## Confirmed search result navigation
+
+Branch main, baseline 6108dcc. This checkpoint changes MessageOperations,
+TelegramService, TelegramReadAdapter, the Chromium messaging test and docs.
+The reported live preparation succeeded but sidebar-only navigation failed.
+Confirmed Send now reruns the saved query when needed and verifies the active
+peer before submitting. npm run check passed with 174 unit, 43 integration and
+15 E2E tests. Next: restart the rebuilt app and retry the approved manual test.
+No real message was sent during this checkpoint.
+
 ## Search input and recent results follow-up
 
 Branch main, previous checkpoint e515eb3. The commit containing this entry
