@@ -445,3 +445,13 @@
   for WebK's timestamp inside the message body. Live acknowledgement pending.
 - Do not retry the delivered message.
 - npm run check passed: 174 unit, 51 integration, 15 E2E plus build checks.
+
+## 2026-11-14 — Phase 4 handoff after live send
+
+- Main, tested code 358df34. Clean tree before the handoff documentation edits.
+- Tasks 1–4 implemented. The user confirmed live delivery to Saved Messages.
+- npm run check PASS, 174 unit, 51 Chromium integration, 15 Electron E2E,
+  typecheck, lint, format and build.
+- Updated project state, phase and task reports, and handoff docs. Code unchanged.
+- Final Connector status and live Reply remain unverified. Both profiles were
+  preserved. First next action is to confirm scope if the user resumes.

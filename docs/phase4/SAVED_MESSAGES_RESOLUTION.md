@@ -56,3 +56,9 @@ opens the unique row with the approved peer ID. The active header must still
 match that ID before composer interaction. Reply uses its existing route.
 The Chromium regression covers a peer available only through search and a
 second result with the same title. Live submission remains pending.
+
+## Handoff result
+
+The user subsequently confirmed live delivery to Saved Messages. See
+`TASK4_MESSAGING.md` for the evidence and remaining limits. Earlier pending
+notes above describe the checkpoints before that confirmation.

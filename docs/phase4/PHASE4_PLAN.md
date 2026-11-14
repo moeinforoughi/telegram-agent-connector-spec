@@ -162,5 +162,5 @@ Automated + live read-only results, limitations, handoff, report.
 | 1 — Plan/selector audit | **Done** (`363ea0a`); report `docs/phase4/TASK1_DOM_AUDIT.md` |
 | 2 — Action queue + read helpers | **Done** (`b7eae50`); report `docs/phase4/TASK2_READ_ADAPTER.md` |
 | 3 — Agent-ready read-only interface | Implemented; see `TASK3_AGENT_INTERFACE.md` |
-| 4 — Confirmed text send and reply | Implemented; live smoke awaits explicit approval |
+| 4 — Confirmed text send and reply | Implemented; live Saved Messages delivery user-confirmed; live Reply unverified |
 | 5–8 | Not started |

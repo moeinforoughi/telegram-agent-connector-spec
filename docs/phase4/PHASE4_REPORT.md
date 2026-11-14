@@ -169,6 +169,7 @@ UI changed, account isolation, missing page.
 
 ## 11. Next task
 
-The pending validation is a controlled Task 4 live smoke. Get explicit
-approval for the exact account, destination, message text, and reply target
-before each live submission.
+The user confirmed live delivery to Saved Messages and requested a handoff.
+Live Reply and the final Connector acknowledgement remain unverified. Future
+live submissions require explicit approval for the account, destination,
+message text and reply target when applicable.

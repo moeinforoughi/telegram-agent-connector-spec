@@ -40,8 +40,9 @@ approval for each exact account, peer, message text and reply target.
 Task 5 and Phase 5 await separate approval.
 
 Read `docs/phase4/SAVED_MESSAGES_RESOLUTION.md` for the recipient regression.
-First obtain a read-only Chromium audit of the deployed search row and active
-header. Current evidence covers public WebK source, a screenshot and fixtures.
+The user confirmed live Saved Messages delivery and asked to stop at the
+handoff. On an explicit continuation request, check the requested scope
+against the latest handoff. The previous test message needs no retry.
 
 Read `docs/phase4/TASK1_DOM_AUDIT.md` and `docs/phase4/TASK2_READ_ADAPTER.md`
 for selectors, API, limits and limitations; `docs/phase4/PHASE4_REPORT.md` is the

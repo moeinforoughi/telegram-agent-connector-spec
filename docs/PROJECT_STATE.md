@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-14 (Phase 4 Tasks 1–4 implemented; live messaging smoke pending)
+Last updated: 2026-11-14 (Phase 4 Tasks 1–4 implemented; live Saved Messages delivery confirmed by user)
 
 ## Project Goal
 
@@ -48,18 +48,16 @@ implied affiliation.
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
 | 2 — Browser Manager, proxy, single account login | **COMPLETE FOR MVP** — deferred verifications accepted | `docs/phase2/PHASE2_REPORT.md` (§9.1); Tasks 1–8 and proxy fixes committed |
 | 3 — Multi-account management | **COMPLETE FOR MVP** — two live accounts PASS; third live account accepted as not tested | `docs/phase3/PHASE3_REPORT.md`, commits `d1107bc`, `7ed25a2` |
-| 4 — Telegram Operations | **In progress** — Tasks 1–4 implemented; live messaging validation awaits explicit approval | `docs/phase4/PHASE4_PLAN.md`, `TASK4_MESSAGING.md` |
+| 4 — Telegram Operations | Tasks 1–4 handed off; live Saved Messages delivery confirmed; live Reply unverified | `docs/phase4/PHASE4_PLAN.md`, `TASK4_MESSAGING.md` |
 | 5+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 4 Task 4 — confirmed text send/reply. See
-`docs/phase4/SAVED_MESSAGES_RESOLUTION.md` for the recipient regression and
-user-confirmed Saved Messages delivery and pending live validation of the
-Connector acknowledgement. For a new live verification, agree on
-the exact account, chat and text for a controlled live smoke. Reply also needs
-an exact target message. See `docs/handoff/LATEST_HANDOFF.md` for the checkpoint,
-test evidence, changed files and limitations.
+Work paused at the user's handoff. Branch `main`, tested code `358df34`.
+The documentation checkpoint follows that commit. The tree was clean before
+handoff edits. Tasks 1–4 are implemented. The user confirmed live delivery
+to Saved Messages. The final Connector status and live Reply remain unverified.
+See `docs/handoff/LATEST_HANDOFF.md` for test results, changed files and resume steps.
 
 ## Session-Independent Development
 

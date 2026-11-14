@@ -1,5 +1,25 @@
 # Latest Handoff — 2026-11-14
 
+## Delivery checkpoint
+
+Branch `main`. Tested code commit `358df34`. This documentation commit
+follows it. The working tree was clean before the handoff edits. Tasks 1–4
+are implemented and work is paused at the user's request.
+
+- Live outcome: the user confirmed a successful Saved Messages delivery.
+  The latest Connector status and live Reply were not independently verified.
+- Automated: `npm run check` passed on 2026-11-14 with 174 unit, 51 Chromium
+  integration and 15 Electron E2E tests, plus typecheck, lint, format and build.
+- This checkpoint changes the project state, Phase 4 plan and report, Task 4
+  messaging report, Saved Messages regression report, Task 05 and handoff docs.
+- Both existing Telegram profiles were preserved. The handoff records no
+  private message body or credentials.
+- First next action on explicit continuation: confirm the requested scope.
+  The delivered message needs no retry. For a fresh live test, record delivery
+  and the Connector result separately. Task 5 and Phase 5 await approval.
+
+The remaining sections are historical checkpoints.
+
 ## Outgoing acknowledgement text
 
 Main baseline c0d8fb9. User confirmed a real Saved Messages send, while

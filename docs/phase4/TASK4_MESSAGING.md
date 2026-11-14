@@ -1,5 +1,18 @@
 # Phase 4 Task 4 — Confirmed Telegram text messaging
 
+## Handoff — 2026-11-14
+
+The user confirmed that a test message sent through Connector reached Saved
+Messages. The earlier attempt also reached the chat while Connector displayed
+`unknown_result`. Commit `358df34` excludes WebK's embedded timestamp from the
+outgoing text comparison. The final user report confirms delivery. It does
+not specify the final Connector status or message ID. Live Reply remains
+unverified. The prior test message needs no retry.
+
+Recipient resolution, search-only navigation, draft reuse and Stars handling
+were verified with fixtures. Both persistent profiles remain preserved.
+Work stopped here at the user's request.
+
 ### Final Send guard follow-up
 
 A live attempt opened Saved Messages and staged the text, then returned the
@@ -73,8 +86,8 @@ preserved Telegram profiles were untouched.
 
 ## Automated verification
 
-npm run check passed typecheck, lint, formatting and production build.
-173 unit, 39 Chromium integration and 15 Electron E2E tests passed.
+At handoff, `npm run check` passed typecheck, lint, formatting and production
+build, with 174 unit, 51 Chromium integration and 15 Electron E2E tests.
 The Electron messaging flow used a temporary profile, intercepted the browser
 navigation and mocked the native dialog response. Integration tests verified
 send/reply acknowledgement, existing draft preservation, missing message and
