@@ -221,6 +221,7 @@ code, and test evidence win.
 | `e3ffc6e` | Guard against duplicate account creation |
 | `363ea0a` | Read-only Telegram chat surface detection |
 | `b7eae50` | Per-account read-only queue and chat/message adapter |
+| `ce55b75` | Agent-ready read-only interface and automated verification |
 
 ## Key Documents
 
