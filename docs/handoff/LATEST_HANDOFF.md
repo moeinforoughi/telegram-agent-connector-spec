@@ -1,5 +1,15 @@
 # Latest Handoff — 2026-11-14
 
+## Search input and recent results follow-up
+
+Branch main, previous checkpoint e515eb3. The commit containing this entry
+includes the search adapter, selector map, regression fixture test and docs.
+npm run check passed with 174 unit, 42 Chromium integration and 15 Electron
+E2E tests plus typecheck, lint, formatting and build. No real message was sent
+and profiles remain preserved. First next action: relaunch the rebuilt app,
+verify the actual typed query and Saved Messages preparation in Chromium,
+and verify the active peer before any approved live submission.
+
 ## Saved Messages regression checkpoint
 
 Branch main, fix commit 7a4b147, followed by this handoff commit. The tree

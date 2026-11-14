@@ -128,8 +128,8 @@ export class TelegramReadAdapter {
     );
     return this.queue(accountId).run(async (page) => {
       await this.requireMain(page);
-      const input = page.locator(SELECTORS.searchInput[0] ?? ".input-search-input").first();
-      if (!(await input.isVisible())) {
+      const input = page.locator(`input${SELECTORS.searchInput[0]}:visible`);
+      if ((await input.count()) !== 1) {
         throw new AppError("TELEGRAM_UI_CHANGED", "Search input was not found", {
           retryable: true,
         });
@@ -144,7 +144,21 @@ export class TelegramReadAdapter {
         });
       }
       try {
-        await input.fill(text, { timeout: this.loadingTimeout });
+        await input.click({ timeout: this.loadingTimeout });
+        if (await input.inputValue({ timeout: this.loadingTimeout })) {
+          throw new AppError("TELEGRAM_UI_CHANGED", "Search input changed while opening");
+        }
+        if (
+          !(await input.evaluate((field) => field === document.activeElement, undefined, {
+            timeout: this.loadingTimeout,
+          }))
+        ) {
+          throw new AppError("TELEGRAM_UI_CHANGED", "Telegram search did not receive focus");
+        }
+        await page.keyboard.insertText(text);
+        if ((await input.inputValue({ timeout: this.loadingTimeout })) !== text) {
+          throw new AppError("TELEGRAM_UI_CHANGED", "Telegram did not retain the search query");
+        }
         await outcome
           .waitFor({
             state: "visible",
@@ -155,12 +169,19 @@ export class TelegramReadAdapter {
               retryable: true,
             });
           });
-        return await this.readChatRows(
+        const rows = await this.readChatRows(
           page,
           limit,
           `${SELECTORS.searchResultRows[0]}:visible`,
           true,
         );
+        if ((await input.inputValue({ timeout: this.loadingTimeout })) !== text) {
+          throw new AppError(
+            "TELEGRAM_UI_CHANGED",
+            "Telegram search query changed before results were read",
+          );
+        }
+        return rows;
       } finally {
         await input.fill("", { timeout: this.loadingTimeout }).catch(() => undefined);
       }

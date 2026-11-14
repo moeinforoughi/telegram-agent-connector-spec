@@ -33,3 +33,15 @@ of message hits and phone-like metadata, and matching versus mismatching
 active peer IDs. Electron exercises the Saved Messages preview and cancels it.
 No real message was sent, and neither preserved profile was modified in this
 task. Task 4 remains Automated Complete — Live Pending.
+
+## Search focus and recent results follow-up
+
+During the next live preparation, the user observed that opening search
+displayed recent chats while no query remained visible. The adapter now
+opens the unique visible input, verifies keyboard focus, inserts the query
+through Chromium, and checks its exact value before and after reading results.
+The WebK sidebar defines separate recent and people groups. Search readiness
+and extraction both exclude those groups, sponsored rows and message hits.
+A Chromium regression fixture shows recent rows as soon as search receives
+focus and delays the actual query results. Live preparation with the rebuilt
+app is still pending.

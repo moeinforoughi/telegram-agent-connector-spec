@@ -80,6 +80,35 @@ describe("TelegramReadAdapter (synthetic pages)", () => {
     expect(await page.locator("#column-center .chat.active").count()).toBe(0);
   });
 
+  it("types after focusing and ignores recent chats while query results load", async () => {
+    const page = await load("surface-search-results.html");
+    await page.evaluate(() => {
+      const input = document.querySelector("input");
+      const panel = document.querySelector(".search-super");
+      if (!input || !panel) throw new Error("Missing search fixture");
+      input.addEventListener("focus", () => {
+        panel.insertAdjacentHTML(
+          "afterbegin",
+          '<div class="search-group-recent"><a class="chatlist-chat" data-peer-id="900"><span class="peer-title">Recent account</span></a></div>',
+        );
+        panel.setAttribute("hidden", "");
+        const recent = panel.firstElementChild;
+        panel.before(recent!);
+        const surface = panel.parentElement;
+        surface?.classList.add("search-super");
+      });
+      input.addEventListener("input", () => {
+        panel.setAttribute("hidden", "");
+        if (input.value === "saved") setTimeout(() => panel.removeAttribute("hidden"), 200);
+      });
+    });
+    const adapter = adapterFor(new Map([["a", page]]));
+    expect((await adapter.searchChats("a", "saved")).map((chat) => chat.id)).toEqual([
+      "2001",
+      "2002",
+    ]);
+  });
+
   it("recognizes the self subtitle and excludes message hits and phone metadata", async () => {
     const page = await load("surface-search-results.html");
     await page.locator(".search-super").evaluate((panel) => {

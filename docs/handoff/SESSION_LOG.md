@@ -390,3 +390,11 @@
   lint, formatting and build.
 - Chromium window binding failed. Deployed DOM remains unverified.
   No real message sent. Next action is the read-only deployed DOM audit.
+
+## 2026-11-14 — Search focus and recent results
+
+- Branch main, baseline e515eb3. The commit containing this entry adds query
+  focus/value checks and excludes recent rows in readiness and extraction.
+- Changed the read adapter, selector map, Chromium regression test and docs.
+- npm run check passed: 174 unit, 42 integration, 15 E2E and build checks.
+- Live verification on the rebuilt app is next. No real message was sent.

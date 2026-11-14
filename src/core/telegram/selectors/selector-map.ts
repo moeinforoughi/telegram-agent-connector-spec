@@ -11,6 +11,9 @@
  * - Loading: .preloader-container.is-visible
  * - Empty search: .search-super [class*="NoResults"]
  */
+const recipientSearchRow =
+  ".search-super .chatlist-chat[data-peer-id]:not([data-mid], [data-sponsored], .search-super-item, .search-group-recent *, .search-group-people *)";
+
 export const SELECTORS = {
   activeChat: "#column-center .chat.active",
   activeChatPeer: ".topbar .peer-title[data-peer-id]",
@@ -28,8 +31,7 @@ export const SELECTORS = {
   settledMessage: ":not(.is-sending,.is-error,.service)",
   messageTextWithinRow: ".message",
   messageSenderWithinRow: ".peer-title",
-  searchOutcome:
-    ".search-super .chatlist-chat[data-peer-id]:visible, .search-super [class*='NoResults']:visible, .search-super [class*='no-results']:visible",
+  searchOutcome: `${recipientSearchRow}:visible, .search-super [class*='NoResults']:visible, .search-super [class*='no-results']:visible`,
   authPage: ["#auth-pages", ".auth-pages", ".auth-pages-wrapper", ".page-auth"],
   qr: [
     "#auth-pages canvas",
@@ -68,10 +70,7 @@ export const SELECTORS = {
   chatRowPreview: [".dialog-subtitle", ".row-subtitle", ".dialog-subtitle-parts"],
   chatUnread: [".dialog-subtitle-badge-unread", ".dialog-subtitle-badge.is-visible"],
   chatRowTime: [".dialog-title-details .message-time", ".message-time"],
-  searchResultRows: [
-    ".search-super .chatlist-chat[data-peer-id]:not([data-mid], .search-super-item)",
-    ".search-super .chatlist-chat",
-  ],
+  searchResultRows: [recipientSearchRow, ".search-super .chatlist-chat"],
   searchSelfSubtitle: ".i18n",
   searchHandle: 'span[dir="ltr"]',
   chatPeerId: [
