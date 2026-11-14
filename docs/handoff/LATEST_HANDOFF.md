@@ -1,42 +1,48 @@
 # Latest Handoff — 2026-11-14
 
-- Branch: main. Task 3 implementation: ce55b75. The handoff-only commit follows
-  that checkpoint. Run git log -2 and git status --short to verify the current HEAD.
-- Working tree was clean after the implementation commit. This handoff records
-  the final documentation checkpoint.
-- Phase 4 Tasks 1–3 are complete through automated verification. Task 4 awaits
-  separate approval for live verification.
+Branch main. Baseline 8c2fc1b, implementation 08e313a, test checkpoint
+9bbf031. The handoff-only commit follows. Verify HEAD and the working tree with
+git log -3 --oneline and git status --short --branch. The tree was clean at the
+test checkpoint before the handoff update.
 
-## Changes
+Phase 4 Tasks 1–3 are complete. Task 4 send/reply is implemented and verified
+against fixtures. Live Telegram validation is pending exact user approval.
+Task 5, Phase 5 and MCP are outside this checkpoint.
 
-- Main: telegram-service.ts, recipient-resolver.ts, telegram-read-adapter.ts,
-  account-action-queue.ts, ipc-router.ts, and index.ts.
-- Core: Telegram chat-surface.ts, ui-map.ts, and selectors/selector-map.ts.
-- Shared/preload/renderer: telegram.ts, ipc.ts, preload index, account dashboard,
-  TelegramDiagnostics.tsx and styles.css.
-- Tests: unit resolver, service, UI map, queue and IPC; Chromium adapter/surface
-  fixtures; Electron diagnostics and preload allowlist.
-- Docs: ADR-024, architecture, roadmap, Task 05, Phase 4 plan/report and Task 3
-  interface, Bot API reference, project state and resume instructions.
-- Exact file list: git show --name-only ce55b75.
+## Changed files
+
+- Main: message-operations.ts, telegram-message-composer.ts, TelegramService,
+  existing TelegramReadAdapter and AccountActionQueue, RecipientResolver, IPC
+  router and composition root.
+- UI/contract: shared messaging.ts, errors.ts and ipc.ts, preload, App.tsx and
+  TelegramMessaging.tsx. WebZ selectors live in selector-map.ts.
+- Tests: message-operations.test.ts, telegram-messaging.test.ts, Electron
+  app.test.ts, IPC/router and recipient resolver tests.
+- Docs: ADR-025, governance, roadmap, project state, implemented architecture,
+  Phase 4 plan/report, Task 05, Task 4 report and handoff files.
+- Exact paths: git show --name-only 08e313a 9bbf031.
 
 ## Verification
 
-- npm run check passed on 2026-11-14 using portable Node and
-  PLAYWRIGHT_BROWSERS_PATH=spike/.browsers. Typecheck, lint, formatting and build
-  passed. 164 unit, 33 Chromium integration and 14 Electron E2E tests passed.
-- Local socket tests require an execution environment that permits loopback.
-- Synthetic fixtures and temporary Electron data were used. No real Telegram
-  account was opened, and both preserved profiles remain untouched.
+npm run check passed before implementation (164 unit, 33 integration, 14 E2E)
+and at the final code/test checkpoint (173 unit, 39 integration, 15 E2E).
+Typecheck, lint, formatting and production build passed. Tests used Chromium
+fixtures and temporary Electron profiles with intercepted navigation. Diff
+whitespace check and pattern scan for private keys, bot tokens and API keys
+passed. No real Telegram profile was opened or changed.
 
-## Remaining work
+## Limits and next action
 
-- The Task 3 selectors and search timing still need controlled live verification.
-  Search-only peers may need manual opening. Peer type is unknown unless reliable
-  visible markup provides it. Reading a chat can mark it read.
-- An outer queue timeout quarantines that page until reconnect. The composer and
-  mutation routes are reserved for separate audits.
-- First next action after explicit Task 4 approval: run a controlled list/search
-  smoke on the preserved sessions and agree on a test chat before opening any
-  chat that could be marked read. Record sanitized counts and statuses only.
-  Phase 5 and writes require their own approval.
+- Reply needs an already-open chat and a visible exact target with an
+  unambiguous matching text helper. Search-only send peers may need manual
+  opening. WebZ deployment compatibility and native dialog rendering still
+  need live verification.
+- Confirm once within 60 seconds in Main. A page change invalidates approval.
+  Possible submissions without verified outgoing acknowledgement return
+  OUTCOME_UNKNOWN. Check Telegram before any new attempt. Staged text or reply
+  helper may remain on a failed composer operation.
+- First next action: agree on one preserved account and the exact text for
+  Saved Messages. Show the exact account/peer/text and obtain explicit
+  approval before sending. For reply, agree on the exact original message ID
+  and reply text separately. Record sanitized outcome only. Preserve both
+  profiles and continue using the saved manual proxy.

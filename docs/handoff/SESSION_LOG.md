@@ -367,3 +367,16 @@
 - Real profiles were untouched. Current WebZ markup and search timing remain
   unverified live. First next action is Task 4 controlled live validation after
   explicit approval. Task 3 is complete.
+
+## 2026-11-14 — Phase 4 Task 4 confirmed Telegram messaging
+
+- main was clean at 8c2fc1b. Implementation 08e313a and test checkpoint 9bbf031
+  completed; working tree clean before this handoff.
+- Added Main message preparation and native approval, shared queue composer
+  submission, outgoing/reply verification, explicit IPC and renderer controls.
+  Exact paths are in LATEST_HANDOFF.md and git show --name-only 08e313a 9bbf031.
+- npm run check passed. Baseline 164 unit, 33 integration, 14 E2E. Final 173
+  unit, 39 integration, 15 E2E plus typecheck, lint, formatting and build.
+- Real profiles untouched. Live smoke is pending approval of exact account,
+  destination, text and target. Next action is one controlled Saved Messages
+  send after approval, followed by a separately approved reply.
