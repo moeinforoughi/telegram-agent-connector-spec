@@ -1,5 +1,19 @@
 # Architecture Decision Records (ADR)
 
+## ADR-024 — Agent-first, low-token Telegram reads
+
+Electron Main owns a transport-independent Telegram service backed by the existing
+per-account queue and Playwright read adapter. Expose bounded, typed results via
+explicit IPC methods and reuse the service for the Phase 5 bridge. Keep workflow
+steps, selectors and DOM inside the connector. Search and list do not open chats.
+Message retrieval verifies the active peer and can mark the chat read.
+
+Recipient candidates are account-scoped, capped at five and revalidated against
+current search results. Keep recent selections in memory only. The runtime UI
+map covers audited read routes and fails closed on unknown structures. A queue
+deadline quarantines its page until replacement because it cannot cancel an
+outstanding Playwright call.
+
 ## ADR-001 — UI Automation به‌جای Telegram API Credentials
 **تصمیم:** Playwright روی Telegram Web؛ بدون درخواست `api_id`, `api_hash` و Bot Token.
 **دلیل:** تجربه اتصال ساده‌تر؛ Login از طریق QR/Phone در UI موجود.

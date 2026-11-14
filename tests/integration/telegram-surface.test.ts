@@ -86,7 +86,9 @@ describe("read-only Telegram surface fixtures", () => {
   });
 
   it("detects search no-results without reading the result text", async () => {
-    const probe = createTelegramDomProbe(await load("surface-search-empty.html"));
+    const page = await load("surface-search-empty.html");
+    await page.locator(".input-search-input").fill("missing");
+    const probe = createTelegramDomProbe(page);
 
     expect(await detectSearchState(probe)).toBe("no_results");
   });

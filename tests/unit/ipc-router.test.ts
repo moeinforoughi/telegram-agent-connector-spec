@@ -53,6 +53,20 @@ function makeHandlers(): IpcHandlers {
     getProxySettings: async () => proxyView,
     saveProxySettings: vi.fn(async () => proxyView),
     testProxy: vi.fn(async () => proxyTest),
+    telegram: {
+      getAccountStatus: vi.fn(() => view),
+      getChatList: vi.fn(async () => []),
+      searchChats: vi.fn(async () => []),
+      resolveRecipient: vi.fn(async () => ({ status: "not_found" as const })),
+      selectRecipient: vi.fn(async () => ({ status: "not_found" as const })),
+      getChatMessages: vi.fn(async () => ({
+        chatId: "1",
+        opened: false,
+        messages: [],
+        truncated: false,
+      })),
+      getUiHealth: vi.fn(async () => ({ status: "ready" as const, routes: [] })),
+    },
   };
 }
 
@@ -94,7 +108,7 @@ describe("registerIpcHandlers", () => {
 
     registerIpcHandlers(window, makeHandlers());
 
-    expect(ipc.removeHandler).toHaveBeenCalledTimes(11);
+    expect(ipc.removeHandler).toHaveBeenCalledTimes(18);
     expect(ipc.handle.mock.calls.map(([channel]) => channel)).toEqual([
       "app:get-info",
       "account:list",
@@ -107,6 +121,13 @@ describe("registerIpcHandlers", () => {
       "proxy:get",
       "proxy:save",
       "proxy:test",
+      "telegram:account-status",
+      "telegram:chat-list",
+      "telegram:search",
+      "telegram:resolve-recipient",
+      "telegram:select-recipient",
+      "telegram:chat-messages",
+      "telegram:ui-health",
     ]);
   });
 
@@ -156,6 +177,32 @@ describe("registerIpcHandlers", () => {
       data: view,
     });
     expect(handlers.startAccount).toHaveBeenCalledWith({ id: view.id });
+  });
+
+  it("validates Telegram inputs and only dispatches from the trusted frame", async () => {
+    const { window, mainFrame } = makeWindow();
+    const handlers = makeHandlers();
+    registerIpcHandlers(window, handlers);
+    const search = handlerFor("telegram:search");
+    const request = { id: view.id, query: "Alice", limit: 3 };
+    await expect(search(makeEvent(mainFrame, 8), request)).resolves.toMatchObject({
+      error: { code: "PERMISSION_DENIED" },
+    });
+    for (const invalid of [
+      { query: " " },
+      { limit: 1.5 },
+      { limit: 0 },
+      { query: "a".repeat(201) },
+    ]) {
+      await expect(search(makeEvent(mainFrame), { ...request, ...invalid })).resolves.toMatchObject(
+        {
+          error: { code: "INVALID_ARGUMENT" },
+        },
+      );
+    }
+    expect(handlers.telegram.searchChats).not.toHaveBeenCalled();
+    await expect(search(makeEvent(mainFrame), request)).resolves.toEqual({ ok: true, data: [] });
+    expect(handlers.telegram.searchChats).toHaveBeenCalledWith(view.id, "Alice", { limit: 3 });
   });
 
   it("validates create, rename and remove payloads", async () => {

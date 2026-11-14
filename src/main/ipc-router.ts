@@ -21,6 +21,7 @@ import type {
 } from "../shared/proxy";
 import type { AppInfo } from "../shared/types";
 import { runIpcHandler } from "./ipc-result";
+import type { TelegramService } from "./telegram-service";
 import { isTrustedSender } from "./trusted-sender";
 
 const PERMISSION_DENIED: SerializedError = {
@@ -41,6 +42,16 @@ export type IpcHandlers = {
   readonly getProxySettings: () => Promise<ProxySettingsView>;
   readonly saveProxySettings: (request: SaveProxySettingsRequest) => Promise<ProxySettingsView>;
   readonly testProxy: (request: ProxyTestRequest) => Promise<ProxyTestResult>;
+  readonly telegram: Pick<
+    TelegramService,
+    | "getAccountStatus"
+    | "getChatList"
+    | "searchChats"
+    | "resolveRecipient"
+    | "selectRecipient"
+    | "getChatMessages"
+    | "getUiHealth"
+  >;
 };
 
 export function registerIpcHandlers(window: BrowserWindow, handlers: IpcHandlers): void {
@@ -119,6 +130,20 @@ function parseSaveProxySettingsRequest(payload: unknown): SaveProxySettingsReque
   return { enabled, ...parseProxyFields(payload) };
 }
 
+function telegramString(payload: unknown, key: string, max: number): string {
+  const value = asRecord(payload)[key];
+  if (typeof value !== "string" || !value.trim() || value.length > max) throw invalidArgument();
+  return value.trim();
+}
+
+function telegramLimit(payload: unknown): { limit?: number } {
+  const limit = asRecord(payload).limit;
+  if (limit === undefined) return {};
+  if (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit < 1)
+    throw invalidArgument();
+  return { limit };
+}
+
 function runHandler(handlers: IpcHandlers, channel: IpcChannel, payload: unknown): unknown {
   switch (channel) {
     case IPC_CHANNELS.getAppInfo:
@@ -143,6 +168,44 @@ function runHandler(handlers: IpcHandlers, channel: IpcChannel, payload: unknown
       return handlers.saveProxySettings(parseSaveProxySettingsRequest(payload));
     case IPC_CHANNELS.testProxy:
       return handlers.testProxy(parseProxyFields(payload));
+    case IPC_CHANNELS.getAccountStatus:
+      return handlers.telegram.getAccountStatus(telegramString(payload, "id", 128));
+    case IPC_CHANNELS.getChatList:
+      return handlers.telegram.getChatList(
+        telegramString(payload, "id", 128),
+        telegramLimit(payload),
+      );
+    case IPC_CHANNELS.searchChats:
+      return handlers.telegram.searchChats(
+        telegramString(payload, "id", 128),
+        telegramString(payload, "query", 200),
+        telegramLimit(payload),
+      );
+    case IPC_CHANNELS.resolveRecipient:
+      return handlers.telegram.resolveRecipient(
+        telegramString(payload, "id", 128),
+        telegramString(payload, "query", 200),
+      );
+    case IPC_CHANNELS.selectRecipient:
+      return handlers.telegram.selectRecipient(
+        telegramString(payload, "id", 128),
+        telegramString(payload, "query", 200),
+        telegramString(payload, "recipientId", 128),
+      );
+    case IPC_CHANNELS.getChatMessages: {
+      const { includeText } = asRecord(payload);
+      if (includeText !== undefined && typeof includeText !== "boolean") throw invalidArgument();
+      return handlers.telegram.getChatMessages(
+        telegramString(payload, "id", 128),
+        telegramString(payload, "chatId", 128),
+        {
+          ...telegramLimit(payload),
+          ...(includeText === undefined ? {} : { includeText }),
+        },
+      );
+    }
+    case IPC_CHANNELS.getUiHealth:
+      return handlers.telegram.getUiHealth(telegramString(payload, "id", 128));
   }
 }
 

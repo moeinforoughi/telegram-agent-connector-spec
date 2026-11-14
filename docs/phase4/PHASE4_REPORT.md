@@ -1,6 +1,7 @@
 # Phase 4 — Telegram Operations: Phase Report
 
-Status: **IN PROGRESS** — Tasks 1–2 complete; Task 3 awaits explicit approval.
+Status: **IN PROGRESS** — Tasks 1–3 implemented. Task 3 results and remaining
+limits are recorded in `TASK3_AGENT_INTERFACE.md`.
 Last updated: 2026-11-11
 Plan: `docs/phase4/PHASE4_PLAN.md`
 
@@ -151,11 +152,10 @@ UI changed, account isolation, missing page.
 
 ## 9. Unresolved issues and limits
 
-- No IPC/preload/renderer surface for operations yet (Task 3).
 - No live message read; only fixture coverage.
-- Queue timeout cannot cancel an in-flight Playwright call.
+- Queue deadlines quarantine the affected page until replacement.
 - Chat-list peer type is not reliable before opening.
-- `openChat` read-marking risk must be surfaced in the Task 3 UI.
+- The diagnostics panel discloses read-marking before message retrieval.
 - Browser close reason is still not modelled as crash vs. normal close.
 
 ## 10. Commits in this phase
@@ -169,6 +169,4 @@ UI changed, account isolation, missing page.
 
 ## 11. Next task
 
-Task 3 — read-only IPC/preload/renderer operations panel. Requires explicit user
-approval. Write operations (Send/Reply) need separate approval; Delete/Edit/
-Forward are out of scope; MCP stays Phase 5.
+Task 4 is controlled live validation and requires separate approval.

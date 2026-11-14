@@ -103,6 +103,13 @@ describe("Electron shell", () => {
       "getProxySettings",
       "saveProxySettings",
       "testProxy",
+      "getAccountStatus",
+      "getChatList",
+      "searchChats",
+      "resolveRecipient",
+      "selectRecipient",
+      "getChatMessages",
+      "getUiHealth",
       "onAccountStatus",
     ]);
     expect(renderer.hasIpcRenderer).toBe(false);
@@ -175,6 +182,20 @@ describe("Electron shell", () => {
     expect(raw[0]?.label).toBe("Personal");
     expect(raw[0]?.profileDir).toContain("profiles");
     expect(fs.existsSync(path.join(dataRoot, "profiles"))).toBe(true);
+  });
+
+  it("shows account-scoped diagnostics without opening a browser", async () => {
+    const { page } = await launchApp();
+    await page.getByLabel("New account label").fill("Diagnostic account");
+    await page.getByRole("button", { name: "Add Account" }).click();
+    await page.getByText("Telegram diagnostics", { exact: true }).click();
+    await page.getByRole("button", { name: "Account status" }).click();
+    const output = page.locator(".telegram-result");
+    await expect.poll(() => output.textContent()).toContain('"status": "disconnected"');
+    expect(await output.textContent()).not.toContain(userDataDir);
+    await page.getByRole("button", { name: "List chats" }).click();
+    await expect.poll(() => output.textContent()).toContain('"code": "BROWSER_CLOSED"');
+    expect(await page.getByLabel("Include message text").isChecked()).toBe(false);
   });
 
   it("creates three isolated account entries from the dashboard", async () => {

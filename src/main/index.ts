@@ -18,6 +18,9 @@ import {
 } from "./paths";
 import { createElectronSecretCodec } from "./secure-storage";
 import { createMainWindow, loadRenderer } from "./window-manager";
+import { RecipientResolver } from "./recipient-resolver";
+import { TelegramReadAdapter } from "./telegram-read-adapter";
+import { TelegramService } from "./telegram-service";
 
 let mainWindow: BrowserWindow | undefined;
 let accountManager: AccountManager | undefined;
@@ -51,7 +54,11 @@ function getAppInfo(): AppInfo {
   };
 }
 
-function createServices(): { manager: AccountManager; proxy: ProxySettingsStore } {
+function createServices(): {
+  manager: AccountManager;
+  proxy: ProxySettingsStore;
+  telegram: TelegramService;
+} {
   const userData = app.getPath("userData");
   const store = new AccountStore(
     path.join(userData, "config", "accounts.json"),
@@ -61,7 +68,17 @@ function createServices(): { manager: AccountManager; proxy: ProxySettingsStore 
     secrets: createElectronSecretCodec(),
   });
 
-  const manager = new AccountManager({
+  const adapter = new TelegramReadAdapter({ pageSource: (id) => manager.getPage(id) });
+  const resolver = new RecipientResolver({
+    search: async (accountId, query, limit) =>
+      (await adapter.searchChats(accountId, query, { limit })).map(({ id, title, type }) => ({
+        id,
+        title,
+        type,
+      })),
+  });
+  const checkedPages = new WeakSet<object>();
+  const manager: AccountManager = new AccountManager({
     store,
     createBrowser: (onClosed) =>
       new BrowserManager({ launcher: createPlaywrightLauncher(), onClosed }),
@@ -69,11 +86,21 @@ function createServices(): { manager: AccountManager; proxy: ProxySettingsStore 
     createProbe: createPlaywrightProbe,
     onView: (view) => {
       if (mainWindow) sendAccountStatus(mainWindow, view);
+      if (!view.id) return;
+      if (view.status !== "connected") {
+        resolver.invalidate(view.id);
+        return;
+      }
+      const page = manager.getPage(view.id);
+      if (!page || checkedPages.has(page)) return;
+      checkedPages.add(page);
+      void adapter.getUiHealth(view.id).catch(() => undefined);
     },
     log: (message) => console.error(`[account] ${message}`),
   });
 
-  return { manager, proxy };
+  const telegram = new TelegramService({ listAccounts: () => manager.list(), adapter, resolver });
+  return { manager, proxy, telegram };
 }
 
 process.on("uncaughtException", (error: unknown) => {
@@ -125,6 +152,7 @@ if (!hasSingleInstanceLock) {
       accountManager = services.manager;
       registerIpcHandlers(mainWindow, {
         getAppInfo,
+        telegram: services.telegram,
         listAccounts: () => services.manager.list(),
         createAccount: (request) => services.manager.create(request.label),
         renameAccount: (request) => services.manager.rename(request.id, request.label),

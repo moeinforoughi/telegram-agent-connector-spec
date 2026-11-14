@@ -72,14 +72,30 @@ describe("AccountActionQueue", () => {
     await expect(next).resolves.toBe("ok");
   });
 
-  it("times out and keeps the queue usable", async () => {
-    const queue = new AccountActionQueue({ getPage: () => page(), timeoutMs: 25 });
+  it("times out and refuses overlapping work on the same page", async () => {
+    const live = page();
+    const queue = new AccountActionQueue({ getPage: () => live, timeoutMs: 25 });
 
     const timedOut = queue.run(() => new Promise<string>(() => undefined));
-    const next = queue.run(async () => "ok");
-
     await expect(timedOut).rejects.toMatchObject({ code: "TIMEOUT" });
-    await expect(next).resolves.toBe("ok");
+
+    // The timed-out Playwright call is still running on this page.
+    await expect(queue.run(async () => "ok")).rejects.toMatchObject({
+      code: "TIMEOUT",
+      message: expect.stringContaining("did not finish"),
+    });
+  });
+
+  it("recovers after the page is replaced", async () => {
+    let current = page();
+    const queue = new AccountActionQueue({ getPage: () => current, timeoutMs: 25 });
+
+    await expect(queue.run(() => new Promise<string>(() => undefined))).rejects.toMatchObject({
+      code: "TIMEOUT",
+    });
+
+    current = page();
+    await expect(queue.run(async () => "ok")).resolves.toBe("ok");
   });
 
   it("rejects when the browser is closed and recovers after it returns", async () => {

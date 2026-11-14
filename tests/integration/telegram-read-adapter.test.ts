@@ -115,6 +115,31 @@ describe("TelegramReadAdapter (synthetic pages)", () => {
     expect(result.messages).toEqual([{ id: "11", text: "hello", direction: "incoming" }]);
   });
 
+  it("reads the requested peer and supports metadata-only output", async () => {
+    const page = await load("surface-openable.html");
+    const adapter = adapterFor(new Map([["a", page]]));
+    await expect(
+      adapter.readChatMessages("a", "4001", { includeText: false }),
+    ).resolves.toMatchObject({
+      opened: true,
+      messages: [{ id: "11", direction: "incoming" }],
+    });
+    const second = await adapter.readChatMessages("a", "4001");
+    expect(second.opened).toBe(false);
+    expect(second.messages[0]?.text).toBe("hello");
+  });
+
+  it("fails closed when navigation opens a different peer", async () => {
+    const page = await load("surface-openable.html");
+    await page
+      .locator(".chatlist-chat")
+      .evaluate((row) => row.setAttribute("data-peer-id", "4999"));
+    const adapter = adapterFor(new Map([["a", page]]), 400);
+    await expect(adapter.readChatMessages("a", "4999")).rejects.toMatchObject({
+      code: "TELEGRAM_UI_CHANGED",
+    });
+  });
+
   it("limits visible messages, classifies direction and strips text from metadata", async () => {
     const page = await load("surface-open-chat.html");
     const adapter = adapterFor(new Map([["a", page]]));

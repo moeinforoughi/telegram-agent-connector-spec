@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import type { TelegramChatType } from "../../shared/telegram";
 import { SELECTORS } from "./selectors/selector-map";
 import type { PageProbe } from "./telegram-types";
 
@@ -15,7 +16,7 @@ export type ChatListState =
   | { readonly state: "loading" }
   | { readonly state: "ui_changed" };
 
-export type ChatType = "user" | "group" | "channel" | "unknown";
+export type ChatType = TelegramChatType;
 
 export type OpenChatState =
   | { readonly open: false }

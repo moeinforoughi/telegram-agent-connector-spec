@@ -1,25 +1,22 @@
 import type { Page } from "playwright";
 import { AppError } from "../shared/errors";
+import type { AgentChat, AgentMessage, TelegramMessageDirection } from "../shared/telegram";
 import {
   detectChatList,
   detectOpenChat,
+  detectMainSurface,
   createTelegramDomProbe,
   type ChatListState,
   type ChatType,
 } from "../core/telegram/chat-surface";
 import { SELECTORS } from "../core/telegram/selectors/selector-map";
+import { checkUiHealth, type UiHealth } from "../core/telegram/ui-map";
 import { AccountActionQueue } from "./account-action-queue";
 
-export type MessageDirection = "incoming" | "outgoing" | "unknown";
+export type MessageDirection = TelegramMessageDirection;
 
-export type ChatSummary = {
-  readonly id: string;
-  readonly title: string;
-  /** List rows do not expose a reliable peer type, so this is unknown. */
-  readonly type: ChatType;
-  readonly lastMessagePreview?: string;
-  readonly unread: boolean;
-};
+/** Agent-facing list row: compact and bounded, never raw DOM. */
+export type ChatSummary = AgentChat;
 
 export type OpenChatInfo = {
   readonly id: string | null;
@@ -28,13 +25,7 @@ export type OpenChatInfo = {
   readonly titleVisible: boolean;
 };
 
-export type MessageSummary = {
-  readonly id: string;
-  readonly text?: string;
-  readonly direction: MessageDirection;
-  readonly timestamp?: string;
-  readonly sender?: string;
-};
+export type MessageSummary = AgentMessage;
 
 export type MessageMetadata = Omit<MessageSummary, "text">;
 
@@ -91,8 +82,8 @@ function isoFromTimestamp(raw: string | null): string | undefined {
 
 /**
  * Read-only Telegram helpers. Every operation is bound to one account and runs
- * through that account's serial queue. No operation opens a chat except
- * `openChat`; no write operation exists here.
+ * through that account's serial queue. `openChat` and `readChatMessages` are the
+ * only operations that open a chat; no write operation exists here.
  */
 export class TelegramReadAdapter {
   private readonly options: TelegramReadAdapterOptions;
@@ -108,7 +99,14 @@ export class TelegramReadAdapter {
       DEFAULT_MAX_CHATS,
       this.options.maxChats ?? DEFAULT_MAX_CHATS,
     );
-    return this.queue(accountId).run((page) => this.readChatRows(page, limit));
+    return this.queue(accountId).run(async (page) => {
+      await this.requireMain(page);
+      const container = page.locator(SELECTORS.chatListContainer.join(", "));
+      if ((await container.count()) === 0) {
+        throw new AppError("TELEGRAM_UI_CHANGED", "Chat list was not found", { retryable: true });
+      }
+      return this.readChatRows(page, limit);
+    });
   }
 
   async searchChats(
@@ -126,24 +124,37 @@ export class TelegramReadAdapter {
       this.options.maxChats ?? DEFAULT_MAX_CHATS,
     );
     return this.queue(accountId).run(async (page) => {
+      await this.requireMain(page);
       const input = page.locator(SELECTORS.searchInput[0] ?? ".input-search-input").first();
-      if ((await input.count()) === 0) {
+      if (!(await input.isVisible())) {
         throw new AppError("TELEGRAM_UI_CHANGED", "Search input was not found", {
           retryable: true,
         });
       }
-      await input.fill(text);
+      if (await input.inputValue({ timeout: this.loadingTimeout })) {
+        throw new AppError("INVALID_ARGUMENT", "Clear the active Telegram search before retrying");
+      }
+      const outcome = page.locator(SELECTORS.searchOutcome).first();
+      if (await outcome.isVisible()) {
+        throw new AppError("TELEGRAM_UI_CHANGED", "Previous search results are still visible", {
+          retryable: true,
+        });
+      }
       try {
-        await page
-          .locator(SELECTORS.searchResults[0] ?? ".search-super")
-          .first()
+        await input.fill(text, { timeout: this.loadingTimeout });
+        await outcome
           .waitFor({
             state: "visible",
             timeout: this.loadingTimeout,
+          })
+          .catch(() => {
+            throw new AppError("TELEGRAM_UI_CHANGED", "Search results could not be verified", {
+              retryable: true,
+            });
           });
-        return await this.readChatRows(page, limit, SELECTORS.searchResultRows[0]);
+        return await this.readChatRows(page, limit, `${SELECTORS.searchResultRows[0]}:visible`);
       } finally {
-        await input.fill("").catch(() => undefined);
+        await input.fill("", { timeout: this.loadingTimeout }).catch(() => undefined);
       }
     });
   }
@@ -162,23 +173,40 @@ export class TelegramReadAdapter {
 
   async openChat(accountId: string, chatId: string): Promise<OpenChatInfo> {
     if (!chatId.trim()) throw new AppError("INVALID_ARGUMENT", "Chat id is required");
+    return this.queue(accountId).run((page) => this.openChatPage(page, chatId));
+  }
+
+  /**
+   * Opens `chatId` only when it is not already the open chat, then reads its
+   * messages in the same queued operation so no other operation can swap the
+   * chat in between. Opening may mark the chat read; `opened` says so.
+   */
+  async readChatMessages(
+    accountId: string,
+    chatId: string,
+    options: { limit?: number; includeText?: boolean } = {},
+  ): Promise<ReadMessagesResult & { readonly opened: boolean }> {
+    const id = chatId.trim();
+    if (!id) throw new AppError("INVALID_ARGUMENT", "Chat id is required");
+    const limit = clampLimit(options.limit, DEFAULT_MAX_MESSAGES, this.options.maxMessages ?? 50);
     return this.queue(accountId).run(async (page) => {
-      const rows = page.locator(SELECTORS.chatRows[0] ?? "#chatlist-container .chatlist-chat");
-      const index = await rows.evaluateAll(
-        (elements, id) =>
-          elements.findIndex((element) => element.getAttribute("data-peer-id") === id),
-        chatId,
-      );
-      if (index < 0) {
-        throw new AppError("CHAT_NOT_FOUND", "Chat was not found in the current list");
+      await this.requireMain(page);
+      const peer = page.locator(SELECTORS.activeChat).locator(SELECTORS.activeChatPeer);
+      const opened =
+        (await peer.count()) !== 1 ||
+        (await peer.getAttribute("data-peer-id", { timeout: this.loadingTimeout })) !== id;
+      if (opened) {
+        await this.openChatPage(page, id);
       }
-      await rows.nth(index).click({ timeout: this.loadingTimeout });
-      await page
-        .locator(SELECTORS.openChat[0] ?? "#column-center .chat.active")
-        .first()
-        .waitFor({ state: "visible", timeout: this.loadingTimeout });
-      return this.readOpenChatInfo(page);
+      await this.waitForMessages(page);
+      const result = await this.readMessages(page, limit, options.includeText ?? true, id);
+      return { opened, ...result };
     });
+  }
+
+  /** Light UI Map health check for the audited routes only. */
+  async getUiHealth(accountId: string): Promise<UiHealth> {
+    return this.queue(accountId).run((page) => checkUiHealth(createTelegramDomProbe(page)));
   }
 
   async readVisibleMessages(
@@ -214,6 +242,17 @@ export class TelegramReadAdapter {
     return this.options.loadingTimeoutMs ?? DEFAULT_LOADING_TIMEOUT;
   }
 
+  private async requireMain(page: Page): Promise<void> {
+    const surface = await detectMainSurface(createTelegramDomProbe(page));
+    if (surface === "login_required")
+      throw new AppError("LOGIN_REQUIRED", "Sign in to Telegram Web");
+    if (surface !== "ready") {
+      throw new AppError("TELEGRAM_UI_CHANGED", "Telegram chat surface is unavailable", {
+        retryable: true,
+      });
+    }
+  }
+
   private queue(accountId: string): AccountActionQueue {
     const existing = this.queues.get(accountId);
     if (existing) return existing;
@@ -231,18 +270,16 @@ export class TelegramReadAdapter {
     selector: string = SELECTORS.chatRows[0] ?? "#chatlist-container .chatlist-chat",
   ): Promise<ChatSummary[]> {
     return page.locator(selector).evaluateAll(
-      (elements, max) =>
+      (elements, { max, selectors }) =>
         elements
           .slice(0, max)
           .map((element) => {
             const id = element.getAttribute("data-peer-id") ?? "";
-            const titleElement =
-              element.querySelector(".dialog-title .peer-title") ??
-              element.querySelector(".row-title .peer-title") ??
-              element.querySelector(".peer-title");
-            const previewElement =
-              element.querySelector(".dialog-subtitle") ?? element.querySelector(".row-subtitle");
-            const unreadBadge = element.querySelector(".dialog-subtitle-badge-unread");
+            const titleElement = selectors.chatRowTitle
+              .map((selector) => element.querySelector(selector))
+              .find(Boolean);
+            const previewElement = element.querySelector(selectors.chatRowPreview.join(", "));
+            const unreadBadge = element.querySelector(selectors.chatUnread.join(", "));
             const unread = Boolean(
               unreadBadge &&
               (unreadBadge.classList.contains("is-visible") ||
@@ -253,7 +290,7 @@ export class TelegramReadAdapter {
             const preview = (previewElement?.textContent ?? "").trim();
             return {
               id,
-              title,
+              title: title.slice(0, 256),
               type: "unknown" as const,
               unread,
               ...(preview ? { lastMessagePreview: preview.slice(0, 256) } : {}),
@@ -261,8 +298,35 @@ export class TelegramReadAdapter {
           })
           .filter((chat) => chat.id !== "" && chat.title !== "")
           .slice(0, max),
-      limit,
+      {
+        max: limit,
+        selectors: {
+          chatRowTitle: SELECTORS.chatRowTitle,
+          chatRowPreview: SELECTORS.chatRowPreview,
+          chatUnread: SELECTORS.chatUnread,
+        },
+      },
     ) as Promise<ChatSummary[]>;
+  }
+
+  private async openChatPage(page: Page, chatId: string): Promise<OpenChatInfo> {
+    await this.requireMain(page);
+    if (!/^-?\d+$/.test(chatId)) throw new AppError("INVALID_ARGUMENT", "Invalid Telegram chat id");
+    const row = page.locator(`${SELECTORS.chatRows[0]}[data-peer-id="${chatId}"]:visible`);
+    if ((await row.count()) !== 1) {
+      throw new AppError("CHAT_NOT_FOUND", "Chat was not found in the current list");
+    }
+    await row.click({ timeout: this.loadingTimeout });
+    await page
+      .locator(SELECTORS.activeChat)
+      .locator(`${SELECTORS.activeChatPeer}[data-peer-id="${chatId}"]`)
+      .waitFor({ state: "visible", timeout: this.loadingTimeout })
+      .catch(() => {
+        throw new AppError("TELEGRAM_UI_CHANGED", "The requested chat could not be verified", {
+          retryable: true,
+        });
+      });
+    return this.readOpenChatInfo(page);
   }
 
   private async readOpenChatInfo(page: Page): Promise<OpenChatInfo> {
@@ -320,34 +384,54 @@ export class TelegramReadAdapter {
     page: Page,
     limit: number,
     includeText: boolean,
+    chatId?: string,
   ): Promise<ReadMessagesResult> {
-    const totalVisible = await page
-      .locator(SELECTORS.messageRows[0] ?? ".bubble[data-mid]")
-      .count();
-    const messages = await page
-      .locator(SELECTORS.messageRows[0] ?? ".bubble[data-mid]")
+    const snapshot = await page
+      .locator(chatId === undefined ? SELECTORS.messageRows[0] : SELECTORS.activeChat)
       .evaluateAll(
         (elements, input) => {
-          const classesOf = (element: Element): string[] =>
-            (typeof element.className === "string" ? element.className : "")
-              .split(/\s+/)
-              .filter(Boolean);
-          return elements.slice(-input.limit).map((element) => {
-            const classes = classesOf(element);
-            const textElement = element.querySelector(".message");
-            const senderElement = element.querySelector(".peer-title");
-            return {
+          let rows = elements;
+          if (input.chatId !== undefined) {
+            const active = elements.length === 1 ? elements[0] : undefined;
+            const peers = active?.querySelectorAll(input.peer);
+            const list = active?.querySelector(input.list);
+            if (
+              !list ||
+              peers?.length !== 1 ||
+              peers[0]?.getAttribute("data-peer-id") !== input.chatId
+            ) {
+              return null;
+            }
+            rows = Array.from(list.querySelectorAll(input.row));
+          }
+          return {
+            totalVisible: rows.length,
+            messages: rows.slice(-input.limit).map((element) => ({
               id: element.getAttribute("data-mid") ?? "",
-              classes,
-              text: input.includeText ? (textElement?.textContent ?? "").trim() : null,
-              sender: (senderElement?.textContent ?? "").trim(),
+              classes: Array.from(element.classList),
+              text: input.includeText
+                ? (element.querySelector(input.text)?.textContent ?? "").trim()
+                : null,
+              sender: (element.querySelector(input.sender)?.textContent ?? "").trim(),
               timestamp: element.getAttribute("data-timestamp"),
-            };
-          });
+            })),
+          };
         },
-        { limit, includeText },
+        {
+          chatId,
+          limit,
+          includeText,
+          peer: SELECTORS.activeChatPeer,
+          list: SELECTORS.activeMessageList,
+          row: SELECTORS.activeChatMessages,
+          text: SELECTORS.messageTextWithinRow,
+          sender: SELECTORS.messageSenderWithinRow,
+        },
       );
-
+    if (!snapshot) {
+      throw new AppError("TELEGRAM_UI_CHANGED", "The requested chat is no longer active");
+    }
+    const { totalVisible, messages } = snapshot;
     return {
       messages: messages
         .filter((message) => message.id !== "")

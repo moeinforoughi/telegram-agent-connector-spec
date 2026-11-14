@@ -11,6 +11,7 @@ import {
   type SaveProxySettingsRequest,
 } from "../../shared/proxy";
 import type { AppInfo } from "../../shared/types";
+import { TelegramDiagnostics } from "./TelegramDiagnostics";
 
 const STATUS_LABELS: Record<AccountStatus, string> = {
   disconnected: "Disconnected",
@@ -469,6 +470,7 @@ export function App() {
                 Remove Account
               </button>
             </div>
+            <TelegramDiagnostics key={`${id}:${account.status}`} id={id} />
           </section>
         );
       })}
@@ -578,7 +580,6 @@ export function App() {
       <footer>
         {info ? `${info.appName} ${info.appVersion} · ${info.platform}` : null}
         <br />
-        Telegram operations and MCP are not part of this phase.
       </footer>
     </main>
   );

@@ -11,9 +11,8 @@ Before changing anything:
 3. Read `docs/handoff/LATEST_HANDOFF.md`.
 4. Skim `docs/handoff/SESSION_LOG.md` (append-only history).
 5. Read `docs/architecture/IMPLEMENTED_ARCHITECTURE.md` (what is really built)
-   and `docs/phase2/PHASE2_REPORT.md` (verification status and the pending live
-   checklist).
-6. Read the active plan (`docs/phase2/PHASE2_PLAN.md` while Phase 2 is active)
+   and `docs/phase4/TASK3_AGENT_INTERFACE.md`.
+6. Read the active plan (`docs/phase4/PHASE4_PLAN.md`)
    and the task files it references.
 7. Inspect the real repository state:
    `git status`, `git branch --show-current`,
@@ -29,17 +28,16 @@ Before changing anything:
 13. Never keep an important decision, limitation, or test result only in chat.
     Put it in the repository.
 
-## Current state (2026-11-10)
+## Current state (2026-11-14)
 
 **Phase 2 and Phase 3 are COMPLETE FOR MVP.** Two real accounts/profiles
 (`moein1`, `kaonashi`) are preserved for Phase 4. Never delete, reset, logout,
 remove, or commit their profiles/cookies/tokens; no personal data in the repo.
 
-**Phase 4 — Telegram Operations is in progress: Tasks 1–2 complete.** A read-only
-DOM/selector audit, `chat-surface`, per-account `AccountActionQueue`, and
-`TelegramReadAdapter` are committed (`363ea0a`, `b7eae50`). Task 3 (read-only
-IPC/preload/renderer) must not start without explicit user approval. No message
-may be sent, edited, deleted, forwarded, or reacted to. MCP remains Phase 5.
+**Phase 4 — Telegram Operations is in progress: Tasks 1–3 complete.** Task 3
+adds the agent-ready read contract and per-account diagnostics. Task 4 is
+controlled live validation and awaits separate approval. No message may be
+sent, edited, deleted, forwarded, or reacted to. MCP remains Phase 5.
 
 Read `docs/phase4/TASK1_DOM_AUDIT.md` and `docs/phase4/TASK2_READ_ADAPTER.md`
 for selectors, API, limits and limitations; `docs/phase4/PHASE4_REPORT.md` is the

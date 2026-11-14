@@ -1,6 +1,6 @@
 # Project State — Telegram Agent Connector
 
-Last updated: 2026-11-11 (Phase 4 Tasks 1–2 complete and re-verified; Task 3 awaiting approval)
+Last updated: 2026-11-14 (Phase 4 Tasks 1–3 implemented)
 
 ## Project Goal
 
@@ -48,15 +48,14 @@ implied affiliation.
 | 1 — Repository foundation | Complete | `docs/phase1/PHASE1_REPORT.md`, commit `619c095` |
 | 2 — Browser Manager, proxy, single account login | **COMPLETE FOR MVP** — deferred verifications accepted | `docs/phase2/PHASE2_REPORT.md` (§9.1); Tasks 1–8 and proxy fixes committed |
 | 3 — Multi-account management | **COMPLETE FOR MVP** — two live accounts PASS; third live account accepted as not tested | `docs/phase3/PHASE3_REPORT.md`, commits `d1107bc`, `7ed25a2` |
-| 4 — Telegram Operations | **In progress** — Tasks 1–2 complete; Task 3 awaiting approval | `docs/phase4/PHASE4_PLAN.md`, `TASK1_DOM_AUDIT.md`, `TASK2_READ_ADAPTER.md`, commits `363ea0a`, `b7eae50` |
+| 4 — Telegram Operations | **In progress** — Tasks 1–3 complete; live validation awaits separate approval | `docs/phase4/PHASE4_PLAN.md`, `TASK3_AGENT_INTERFACE.md` |
 | 5+ | Not started; no approval | Roadmap docs |
 
 ## Active Task
 
-Phase 4 Task 2 — **COMPLETE** (`b7eae50`): per-account action queue and
-read-only chat/message adapter. Task 3 (read-only IPC/preload/renderer) is
-**not started** and waits for explicit approval. Do not send/edit/delete/forward
-messages. Preserve the two sessions.
+Phase 4 Task 3 — agent-ready read-only interface. The next authorized work starts
+only after separate approval for Task 4. See `docs/handoff/LATEST_HANDOFF.md`
+for the branch, checkpoint, test evidence, changed files and limitations.
 
 ## Session-Independent Development
 
@@ -191,11 +190,9 @@ code, and test evidence win.
   list states ready with 11/12 rows and search results 5/1 for the two accounts;
   no chat opened because every visible chat had unread badges. Automated:
   134 unit, 31 integration, 13 E2E; `npm run check` passes.
-- Known architecture gap: the browser close reason is not modelled. An
-  intentional user close currently becomes a `BROWSER_CLOSED` error; a crash is
-  only logged. Browser runtime state and stored session state are not yet
-  separate in the view. Documented in `PHASE2_REPORT.md` §6 and the handoff;
-  not implemented because this turn was documentation-only.
+- Known architecture gap: the browser close reason is not modelled. A normal
+  close sets the account to `ready`. Browser runtime state and stored session
+  state are not yet separate in the view.
 
 ## Important Commits
 
@@ -236,7 +233,8 @@ code, and test evidence win.
   deferred checks.
 - `docs/phase3/PHASE3_PLAN.md` — Phase 3 plan (complete).
 - `docs/phase3/PHASE3_REPORT.md` — Phase 3 final report and live results.
-- `docs/phase4/PHASE4_PLAN.md` — Phase 4 plan (Task 1 complete).
+- `docs/phase4/PHASE4_PLAN.md` — Phase 4 plan.
+- `docs/phase4/TASK3_AGENT_INTERFACE.md` — read interface and verification.
 - `docs/phase4/TASK1_DOM_AUDIT.md` — read-only selector audit and smoke results.
 - `docs/phase4/TASK2_READ_ADAPTER.md` — queue, helpers, limits and smoke results.
 - `docs/phase4/PHASE4_REPORT.md` — Phase 4 status report (in progress).

@@ -12,6 +12,14 @@
  * - Empty search: .search-super [class*="NoResults"]
  */
 export const SELECTORS = {
+  activeChat: "#column-center .chat.active",
+  activeChatPeer: ".topbar .peer-title[data-peer-id]",
+  activeMessageList: ".bubbles",
+  activeChatMessages: ".bubble[data-mid]",
+  messageTextWithinRow: ".message",
+  messageSenderWithinRow: ".peer-title",
+  searchOutcome:
+    ".search-super .chatlist-chat[data-peer-id]:visible, .search-super [class*='NoResults']:visible, .search-super [class*='no-results']:visible",
   authPage: ["#auth-pages", ".auth-pages", ".auth-pages-wrapper", ".page-auth"],
   qr: [
     "#auth-pages canvas",

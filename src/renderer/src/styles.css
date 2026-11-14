@@ -241,3 +241,9 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+.telegram-result {
+  max-height: 24rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

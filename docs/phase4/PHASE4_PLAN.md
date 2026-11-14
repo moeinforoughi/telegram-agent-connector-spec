@@ -86,9 +86,11 @@ Add a small serialized queue per account and read-only helpers for chat list and
 message list. Bounded results; stop on UI change.
 **Status: COMPLETE (`b7eae50`) — report `docs/phase4/TASK2_READ_ADAPTER.md`.**
 
-### Task 3 — IPC/preload/renderer read-only operations
-Add explicit read channels and a per-account operations panel (chat list,
-bounded messages, search). No content is logged or sent to an LLM.
+### Task 3 — Agent-ready read-only interface
+Use a transport-independent TelegramService, account-scoped RecipientResolver,
+bounded DTOs, a limited UI map, and explicit IPC/preload methods with a local
+diagnostics panel. Verify the active chat before extracting messages and
+quarantine pages after queue deadlines. See `TASK3_AGENT_INTERFACE.md`.
 
 ### Task 4 — Live read-only validation with the two preserved sessions
 Use `moein1` and `kaonashi`; read a small chat list and a few messages. Do not
@@ -152,12 +154,12 @@ Automated + live read-only results, limitations, handoff, report.
 - AI/LLM processing of message content.
 - Reading cookies/tokens/session files.
 
-## 10. Status (2026-11-10)
+## 10. Status (2026-11-14)
 
 | Task | Status |
 |---|---|
 | 1 — Plan/selector audit | **Done** (`363ea0a`); report `docs/phase4/TASK1_DOM_AUDIT.md` |
 | 2 — Action queue + read helpers | **Done** (`b7eae50`); report `docs/phase4/TASK2_READ_ADAPTER.md` |
-| 3 — Read-only IPC/renderer | Not started; awaiting approval |
-| 4 — Live read-only validation | Not started |
+| 3 — Agent-ready read-only interface | Implemented; see `TASK3_AGENT_INTERFACE.md` |
+| 4 — Live read-only validation | Awaiting separate approval |
 | 5–8 | Not started |

@@ -16,6 +16,13 @@ describe("IPC allowlist", () => {
       IPC_CHANNELS.getProxySettings,
       IPC_CHANNELS.saveProxySettings,
       IPC_CHANNELS.testProxy,
+      IPC_CHANNELS.getAccountStatus,
+      IPC_CHANNELS.getChatList,
+      IPC_CHANNELS.searchChats,
+      IPC_CHANNELS.resolveRecipient,
+      IPC_CHANNELS.selectRecipient,
+      IPC_CHANNELS.getChatMessages,
+      IPC_CHANNELS.getUiHealth,
     ]);
   });
 

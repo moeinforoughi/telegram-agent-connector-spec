@@ -1,4 +1,9 @@
-# Implemented Architecture — Phase 0 to Phase 3
+# Implemented Architecture — Phase 0 through Phase 4 Task 3
+
+Phase 4 Task 3 adds the Main-owned TelegramService, RecipientResolver and
+audited UI map over the existing per-account Playwright adapter. The explicit
+IPC/preload surface serves the local per-account diagnostics panel. See
+`docs/phase4/TASK3_AGENT_INTERFACE.md` for contracts and limitations.
 
 Status: current implementation, reconciled against the code and tests in the
 repository. Phase 2 live verification is still pending; see

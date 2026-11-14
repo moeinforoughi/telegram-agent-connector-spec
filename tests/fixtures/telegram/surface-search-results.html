@@ -4,7 +4,7 @@
     <div id="page-chats" class="whole page-chats">
       <div id="column-left">
         <input class="input-search-input" type="text" aria-label="Search" placeholder=" " />
-        <div class="search-super">
+        <div class="search-super" hidden>
           <a class="chatlist-chat" data-peer-id="2001">
             <div class="dialog-title"><span class="peer-title">Result A</span></div>
             <div class="dialog-subtitle">preview A</div>
@@ -17,5 +17,10 @@
         </div>
       </div>
     </div>
+    <script>
+      document.querySelector("input").addEventListener("input", (event) => {
+        document.querySelector(".search-super").hidden = !event.target.value;
+      });
+    </script>
   </body>
 </html>

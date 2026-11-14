@@ -11,6 +11,7 @@
 6. زیبایی و امکانات جانبی
 
 ## اصول معماری
+- Agent-first و Low-token: عملیات چندمرحله‌ای در Core انجام شود. خروجی Agent محدود، ساختاریافته و عاری از DOM، Selector و اطلاعات Debug باشد.
 - Modular Monolith؛ یک Repository و یک برنامه محلی.
 - Electron Main Process مالک Core و Browser Manager است.
 - Renderer فقط UI است و مستقیماً به Node.js یا فایل‌های Session دسترسی ندارد.

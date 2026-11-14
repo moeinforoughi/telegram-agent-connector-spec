@@ -14,6 +14,13 @@ const api: ConnectorApi = {
   getProxySettings: () => ipcRenderer.invoke(IPC_CHANNELS.getProxySettings),
   saveProxySettings: (request) => ipcRenderer.invoke(IPC_CHANNELS.saveProxySettings, request),
   testProxy: (request) => ipcRenderer.invoke(IPC_CHANNELS.testProxy, request),
+  getAccountStatus: (request) => ipcRenderer.invoke(IPC_CHANNELS.getAccountStatus, request),
+  getChatList: (request) => ipcRenderer.invoke(IPC_CHANNELS.getChatList, request),
+  searchChats: (request) => ipcRenderer.invoke(IPC_CHANNELS.searchChats, request),
+  resolveRecipient: (request) => ipcRenderer.invoke(IPC_CHANNELS.resolveRecipient, request),
+  selectRecipient: (request) => ipcRenderer.invoke(IPC_CHANNELS.selectRecipient, request),
+  getChatMessages: (request) => ipcRenderer.invoke(IPC_CHANNELS.getChatMessages, request),
+  getUiHealth: (request) => ipcRenderer.invoke(IPC_CHANNELS.getUiHealth, request),
   onAccountStatus: (listener) => {
     const handler = (_event: unknown, view: AccountView): void => listener(view);
     ipcRenderer.on(IPC_EVENTS.accountStatus, handler);

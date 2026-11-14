@@ -7,6 +7,7 @@ import type {
   SaveProxySettingsRequest,
 } from "./proxy";
 import type { AppInfo } from "./types";
+import type { AgentChat, AgentChatMessages, AgentRecipientResolution, UiHealth } from "./telegram";
 
 export const IPC_CHANNELS = {
   getAppInfo: "app:get-info",
@@ -20,6 +21,13 @@ export const IPC_CHANNELS = {
   getProxySettings: "proxy:get",
   saveProxySettings: "proxy:save",
   testProxy: "proxy:test",
+  getAccountStatus: "telegram:account-status",
+  getChatList: "telegram:chat-list",
+  searchChats: "telegram:search",
+  resolveRecipient: "telegram:resolve-recipient",
+  selectRecipient: "telegram:select-recipient",
+  getChatMessages: "telegram:chat-messages",
+  getUiHealth: "telegram:ui-health",
 } as const;
 
 export const IPC_EVENTS = {
@@ -38,6 +46,13 @@ export const IPC_ALLOWLIST = [
   IPC_CHANNELS.getProxySettings,
   IPC_CHANNELS.saveProxySettings,
   IPC_CHANNELS.testProxy,
+  IPC_CHANNELS.getAccountStatus,
+  IPC_CHANNELS.getChatList,
+  IPC_CHANNELS.searchChats,
+  IPC_CHANNELS.resolveRecipient,
+  IPC_CHANNELS.selectRecipient,
+  IPC_CHANNELS.getChatMessages,
+  IPC_CHANNELS.getUiHealth,
 ] as const;
 
 export type IpcChannel = (typeof IPC_ALLOWLIST)[number];
@@ -48,6 +63,9 @@ export type IpcResult<T> =
 export type AccountIdRequest = {
   readonly id: string;
 };
+
+type ChatListRequest = AccountIdRequest & { readonly limit?: number };
+type RecipientRequest = AccountIdRequest & { readonly query: string };
 
 export type CreateAccountRequest = {
   readonly label?: string;
@@ -75,5 +93,18 @@ export type ConnectorApi = {
   getProxySettings(): Promise<IpcResult<ProxySettingsView>>;
   saveProxySettings(request: SaveProxySettingsRequest): Promise<IpcResult<ProxySettingsView>>;
   testProxy(request: ProxyTestRequest): Promise<IpcResult<ProxyTestResult>>;
+  getAccountStatus(request: AccountIdRequest): Promise<IpcResult<AccountView>>;
+  getChatList(request: ChatListRequest): Promise<IpcResult<readonly AgentChat[]>>;
+  searchChats(
+    request: RecipientRequest & ChatListRequest,
+  ): Promise<IpcResult<readonly AgentChat[]>>;
+  resolveRecipient(request: RecipientRequest): Promise<IpcResult<AgentRecipientResolution>>;
+  selectRecipient(
+    request: RecipientRequest & { recipientId: string },
+  ): Promise<IpcResult<AgentRecipientResolution>>;
+  getChatMessages(
+    request: ChatListRequest & { chatId: string; includeText?: boolean },
+  ): Promise<IpcResult<AgentChatMessages>>;
+  getUiHealth(request: AccountIdRequest): Promise<IpcResult<UiHealth>>;
   onAccountStatus(listener: (view: AccountView) => void): () => void;
 };

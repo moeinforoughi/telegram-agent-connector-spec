@@ -59,6 +59,11 @@
 
 ## 3. Data Flow
 
+Agent-first reads use the Main-owned TelegramService. It composes resolution,
+navigation and verification within the connector and returns compact typed
+results. The Renderer invokes explicit IPC methods. Phase 5 can use the same
+service through the Named Pipe bridge. See ADR-024.
+
 ### Login
 1. کاربر در UI روی Add Account می‌زند.
 2. Core یک Account ID و Profile Directory ایجاد می‌کند.
