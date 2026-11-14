@@ -380,3 +380,13 @@
 - Real profiles untouched. Live smoke is pending approval of exact account,
   destination, text and target. Next action is one controlled Saved Messages
   send after approval, followed by a separately approved reply.
+
+## 2026-11-14 — Saved Messages recipient regression
+
+- Branch main, fix 7a4b147. Working tree clean after the fix commit.
+- Search adapter, resolver, DTO, native and renderer previews, and regression
+  tests updated. See git show --name-only 7a4b147 for the full file list.
+- npm run check passed: 174 unit, 41 integration, 15 E2E, plus typecheck,
+  lint, formatting and build.
+- Chromium window binding failed. Deployed DOM remains unverified.
+  No real message sent. Next action is the read-only deployed DOM audit.

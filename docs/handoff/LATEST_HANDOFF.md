@@ -1,5 +1,20 @@
 # Latest Handoff — 2026-11-14
 
+## Saved Messages regression checkpoint
+
+Branch main, fix commit 7a4b147, followed by this handoff commit. The tree
+was clean after the fix commit. Exact changed paths: git show --name-only 7a4b147.
+Changes cover the search selector/adapter, recipient resolver and DTO,
+messaging previews, Chromium and Electron tests, and project/resume docs.
+npm run check passed with 174 unit, 41 Chromium integration and 15 Electron
+E2E tests plus typecheck, lint, formatting and build.
+No real messages were sent. The two preserved profiles remain intact.
+Task 4 remains Automated Complete — Live Pending. First obtain a read-only
+audit of the deployed search row and active header. Chromium window binding
+failed during this session. See docs/phase4/SAVED_MESSAGES_RESOLUTION.md.
+
+## Previous Task 4 checkpoint
+
 Branch main. Baseline 8c2fc1b, implementation 08e313a, test checkpoint
 9bbf031. The handoff-only commit follows. Verify HEAD and the working tree with
 git log -3 --oneline and git status --short --branch. The tree was clean at the
