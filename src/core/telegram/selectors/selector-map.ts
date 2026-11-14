@@ -32,6 +32,7 @@ export const SELECTORS = {
   acknowledgedOutgoing: ".bubble.is-out:is(.is-sent,.is-read):not(.is-sending,.is-error)[data-mid]",
   settledMessage: ":not(.is-sending,.is-error,.service)",
   messageTextWithinRow: ".message",
+  messageTimeWithinText: ".time",
   messageSenderWithinRow: ".peer-title",
   searchOutcome: `${recipientSearchRow}:visible, .search-super [class*='NoResults']:visible, .search-super [class*='no-results']:visible`,
   authPage: ["#auth-pages", ".auth-pages", ".auth-pages-wrapper", ".page-auth"],

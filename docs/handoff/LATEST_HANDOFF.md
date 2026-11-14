@@ -1,5 +1,17 @@
 # Latest Handoff — 2026-11-14
 
+## Outgoing acknowledgement text
+
+Main baseline c0d8fb9. User confirmed a real Saved Messages send, while
+Connector returned unknown_result. Public WebK source appends its timestamp
+inside the message body. The composer verifier now compares the body without
+that timestamp and the Chromium fixture covers the nested markup. Changed
+composer, selector map, integration fixture and state docs. Live verification
+of the updated acknowledgement remains pending. Do not resend the prior message.
+npm run check passed with 174 unit, 51 integration and 15 Electron E2E tests.
+First next action: launch the rebuilt app and validate acknowledgement only
+with a new explicitly approved test message.
+
 ## Stars badge price text
 
 Branch main, baseline 3765fa5. Updated the composer badge check, Chromium

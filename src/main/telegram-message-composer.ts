@@ -178,11 +178,18 @@ export async function submitThroughComposer(
         const rows = Array.from(chat?.querySelectorAll(s.acknowledgedOutgoing) ?? []);
         const matches = rows.filter((row) => {
           const id = row.getAttribute("data-mid");
+          const body = row.querySelector<HTMLElement>(s.messageTextWithinRow);
+          const copy = body?.cloneNode(true) as HTMLElement | undefined;
+          copy?.querySelectorAll(s.messageTimeWithinText).forEach((time) => time.remove());
+          copy?.querySelectorAll("br").forEach((lineBreak) => lineBreak.replaceWith("\n"));
+          const bodyText = body?.querySelector(s.messageTimeWithinText)
+            ? copy?.textContent
+            : body?.innerText;
           return (
             id !== null &&
             /^[1-9]\d{0,19}$/.test(id) &&
             !previous.includes(id) &&
-            row.querySelector<HTMLElement>(s.messageTextWithinRow)?.innerText === text &&
+            bodyText === text &&
             (replyId === undefined
               ? !row.hasAttribute("data-reply-to-mid") &&
                 !row.hasAttribute("data-reply-to-story-id")

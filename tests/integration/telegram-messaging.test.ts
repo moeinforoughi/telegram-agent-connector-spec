@@ -65,6 +65,10 @@ async function fixture(acknowledge = true): Promise<{ page: Page; adapter: Teleg
         const body = document.createElement('div');
         body.className = 'message';
         body.textContent = input.innerText;
+        const time = document.createElement('span');
+        time.className = 'time';
+        time.textContent = '12:34';
+        body.append(time);
         row.append(body);
         document.querySelector('.bubbles').append(row);
         input.textContent = '';

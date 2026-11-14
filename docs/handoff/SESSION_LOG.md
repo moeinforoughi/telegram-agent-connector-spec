@@ -437,3 +437,11 @@
 - Main baseline 3765fa5. Composer, Chromium tests and status docs updated.
 - npm run check passed: 174 unit, 51 integration, 15 E2E plus build checks.
 - Live send remains pending. Next: relaunch for the approved manual test.
+
+## 2026-11-14 — Outgoing acknowledgement text
+
+- User confirmed live delivery to Saved Messages. Connector reported unknown.
+- Main baseline c0d8fb9. Updated the verifier and Chromium fixture to account
+  for WebK's timestamp inside the message body. Live acknowledgement pending.
+- Do not retry the delivered message.
+- npm run check passed: 174 unit, 51 integration, 15 E2E plus build checks.
