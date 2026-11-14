@@ -106,7 +106,10 @@ describe("Telegram messaging fixtures", () => {
         }, marker);
         await expect(adapter.submitMessage(operation)).rejects.toMatchObject({
           code: "TELEGRAM_UI_CHANGED",
-          message: "Telegram shows a paid or ephemeral send mode",
+          message:
+            marker === "is-ephemeral-composer"
+              ? "Telegram marks the active composer as ephemeral"
+              : "Telegram shows a Stars price in the composer placeholder",
         });
         expect(await page.locator(".btn-send").getAttribute("data-clicks")).toBeNull();
       } finally {
@@ -129,7 +132,7 @@ describe("Telegram messaging fixtures", () => {
         if (visible) {
           await expect(adapter.submitMessage(operation)).rejects.toMatchObject({
             code: "TELEGRAM_UI_CHANGED",
-            message: "Telegram shows a paid or ephemeral send mode",
+            message: "Telegram shows a populated Stars badge on the Send control",
           });
           expect(await page.locator(".btn-send").getAttribute("data-clicks")).toBeNull();
         } else {

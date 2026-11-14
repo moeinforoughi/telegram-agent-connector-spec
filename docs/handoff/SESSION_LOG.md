@@ -424,3 +424,10 @@
   docs changed. Live error identified the paid/ephemeral pre-click check.
 - npm run check passed: 174 unit, 49 integration, 15 E2E plus build checks.
 - Live send remains pending. No real message was sent during this checkpoint.
+
+## 2026-11-14 — Distinguish live Send guard failures
+
+- Main baseline 10b8ce3. Changed selector map, composer, fixture assertions
+  and state docs. The failed live attempt is still undiagnosed.
+- npm run check passed: 174 unit, 49 integration, 15 E2E and build checks.
+- First next action: restart the rebuilt app and capture the specific marker.

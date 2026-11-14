@@ -122,16 +122,18 @@ export async function submitThroughComposer(
           !button.checkVisibility({ visibilityProperty: true, opacityProperty: true })
         )
           return "Telegram Send button is unavailable";
+        if (chat.matches(s.ephemeralComposer) || chat.querySelector(s.ephemeralComposer))
+          return "Telegram marks the active composer as ephemeral";
+        if (chat.querySelector(s.sendPricePlaceholder))
+          return "Telegram shows a Stars price in the composer placeholder";
         if (
-          chat.matches(s.sendModifiers) ||
-          chat.querySelector(s.sendModifiers) ||
           Array.from(chat.querySelectorAll(s.sendStarsBadge)).some(
             (badge) =>
               badge.textContent?.trim() &&
               badge.checkVisibility({ visibilityProperty: true, opacityProperty: true }),
           )
         )
-          return "Telegram shows a paid or ephemeral send mode";
+          return "Telegram shows a populated Stars badge on the Send control";
         if (args.replyId !== undefined) {
           const replies = chat.querySelectorAll(s.replyHelper);
           const targets = Array.from(chat.querySelectorAll(s.activeChatMessages)).filter(

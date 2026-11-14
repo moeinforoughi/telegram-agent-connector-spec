@@ -1,5 +1,16 @@
 # Latest Handoff — 2026-11-14
 
+## Identify the live Send blocker
+
+Main baseline 10b8ce3. Live Saved Messages still fails after the Stars badge
+fix. The combined guard message did not identify the actual marker. This
+checkpoint changes the selector map, composer and fixture assertions to
+report the ephemeral state, Stars price placeholder, or populated Stars
+badge individually. No guard is relaxed. The next live step is to capture
+the specific marker and compare it with the deployed composer DOM.
+Working tree clean after this checkpoint. npm run check passed with 174
+unit, 49 Chromium integration and 15 Electron E2E tests plus build checks.
+
 ## Stars badge and ephemeral-state guard
 
 Main baseline b11ea72. This checkpoint changes the composer, selector map,
