@@ -187,6 +187,17 @@ describe("Telegram messaging fixtures", () => {
     }
   });
 
+  it("sends an existing draft only when it exactly matches the newly approved text", async () => {
+    const { page, adapter } = await fixture();
+    try {
+      await page.locator("[contenteditable]").fill(operation.text);
+      await expect(adapter.submitMessage(operation)).resolves.toBe("42");
+      expect(await page.locator(".btn-send").getAttribute("data-clicks")).toBe("1");
+    } finally {
+      await page.close();
+    }
+  });
+
   it("preserves existing drafts and fails closed before submission", async () => {
     const { page, adapter } = await fixture();
     try {

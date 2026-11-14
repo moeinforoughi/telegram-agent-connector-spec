@@ -10,6 +10,11 @@ visible paid or ephemeral modes, rejects disabled Send controls, and reports
 the exact failing check without returning message contents. Chromium fixtures
 cover transparent and visible badges. Live verification remains pending.
 
+A fresh, explicitly approved Send can reuse a staged draft only if its text
+exactly matches. Different drafts are preserved and reported explicitly.
+Reply still requires an empty composer before selecting its target. The
+generic initial composer error is split into control and helper failures.
+
 Baseline on main at 8c2fc1b was clean. npm run check passed with 164 unit,
 33 Chromium integration and 14 Electron E2E tests before implementation.
 

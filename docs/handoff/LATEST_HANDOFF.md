@@ -1,5 +1,14 @@
 # Latest Handoff — 2026-11-14
 
+## Existing composer draft
+
+Main baseline 3b0a186. This checkpoint changes the composer, Chromium
+messaging fixture and docs. A newly confirmed Send may reuse an exact draft.
+Different drafts and reply helpers are preserved. Initial check failures now
+identify the control, helper or draft condition. npm run check passed with
+174 unit, 46 integration and 15 E2E tests. Next: restart and repeat the
+manual Saved Messages test. The exact previous live guard remains unverified.
+
 ## Final Send guard
 
 Main baseline e7c7ce4. This checkpoint changes the composer, selector map,

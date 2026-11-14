@@ -411,3 +411,9 @@
 - npm run check passed: 174 unit, 45 integration and 15 E2E plus build checks.
 - Exact live failure remains unverified. Restart and inspect the staged draft
   before the next manual send test. No real message was sent in this checkpoint.
+
+## 2026-11-14 — Existing composer draft
+
+- Main baseline 3b0a186. Composer, Chromium fixture and status docs updated.
+- npm run check passed: 174 unit, 46 integration and 15 E2E plus build checks.
+- Next: restart and repeat the manually approved Saved Messages test.

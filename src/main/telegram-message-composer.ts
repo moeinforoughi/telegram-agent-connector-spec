@@ -40,19 +40,28 @@ export async function submitThroughComposer(
     (await input.count()) !== 1 ||
     (await control.count()) !== 1 ||
     !(await input.isVisible()) ||
-    !(await control.isVisible()) ||
-    (await input.innerText({ timeout })).trim() ||
-    (await chat.evaluate(
+    !(await control.isVisible())
+  ) {
+    throw new AppError(
+      "TELEGRAM_UI_CHANGED",
+      "Telegram editor or Send control is missing or ambiguous",
+    );
+  }
+  if (
+    await chat.evaluate(
       (element, selector) => element.matches(selector),
       SELECTORS.activeInputHelper,
       { timeout },
-    ))
+    )
   ) {
-    throw uiChanged();
+    throw new AppError("TELEGRAM_UI_CHANGED", "Telegram already shows an active composer helper");
   }
   const replyId = operation.kind === "reply" ? operation.messageId : undefined;
   let replyText: string | undefined;
   if (operation.kind === "reply") {
+    if ((await input.innerText({ timeout })).trim()) {
+      throw new AppError("TELEGRAM_UI_CHANGED", "Telegram has an existing draft in the reply chat");
+    }
     const target = await replyTarget(chat, operation.messageId, timeout);
     if (target.text.slice(0, 240) !== operation.targetPreview) throw uiChanged();
     replyText = target.text;
@@ -71,7 +80,16 @@ export async function submitThroughComposer(
     throw new AppError("PERMISSION_DENIED", "Confirmation expired before submission");
   const editor = await input.elementHandle({ timeout });
   try {
-    await editor.fill(operation.text, { timeout });
+    const draft = await editor.innerText();
+    if (draft !== operation.text || operation.kind === "reply") {
+      if (draft.trim()) {
+        throw new AppError(
+          "TELEGRAM_UI_CHANGED",
+          "Telegram has an existing draft that cannot be reused for this operation",
+        );
+      }
+      await editor.fill(operation.text, { timeout });
+    }
     await chat
       .locator(`${SELECTORS.sendControl}${SELECTORS.plainSendControl}`)
       .waitFor({ state: "visible", timeout })
