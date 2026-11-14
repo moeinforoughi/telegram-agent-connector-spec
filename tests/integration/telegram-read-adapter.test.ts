@@ -80,6 +80,32 @@ describe("TelegramReadAdapter (synthetic pages)", () => {
     expect(await page.locator("#column-center .chat.active").count()).toBe(0);
   });
 
+  it("recognizes the self subtitle and excludes message hits and phone metadata", async () => {
+    const page = await load("surface-search-results.html");
+    await page.locator(".search-super").evaluate((panel) => {
+      panel.innerHTML = `
+        <a class="chatlist-chat" data-peer-id="101"><span class="peer-title">Account display name</span>
+          <span class="dialog-subtitle"><span class="i18n">Chat with yourself</span></span></a>
+        <a class="chatlist-chat" data-peer-id="102"><span class="peer-title">Saved Messages</span>
+          <span class="dialog-subtitle"><span dir="ltr">@other_peer</span></span></a>
+        <a class="chatlist-chat" data-peer-id="103"><span class="peer-title">Contact</span>
+          <span class="dialog-subtitle"><span dir="ltr">+000123</span></span></a>
+        <a class="chatlist-chat" data-peer-id="104" data-mid="9"><span class="peer-title">Message hit</span></a>`;
+    });
+    const adapter = adapterFor(new Map([["a", page]]));
+    const result = await adapter.searchChats("a", "saved");
+    expect(result).toHaveLength(3);
+    expect(result[0]).toMatchObject({
+      id: "101",
+      title: "Saved Messages",
+      type: "self",
+      isSelfChat: true,
+      subtitle: "Chat with yourself",
+    });
+    expect(result[1]).toMatchObject({ id: "102", type: "unknown", username: "@other_peer" });
+    expect(JSON.stringify(result)).not.toContain("+000123");
+  });
+
   it("reads the chat list state and open-chat info", async () => {
     const listPage = await load("surface-chat-list.html");
     const openPage = await load("surface-open-chat.html");

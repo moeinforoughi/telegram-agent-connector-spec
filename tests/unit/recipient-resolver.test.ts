@@ -33,6 +33,20 @@ function setup(
 }
 
 describe("RecipientResolver", () => {
+  it("requires self-chat evidence for the exact Saved Messages query", async () => {
+    const { resolver, setResults } = setup([alice]);
+    await expect(resolver.resolve("a1", "Saved Messages")).resolves.toEqual({
+      status: "not_found",
+    });
+    const self = { id: "1003", title: "Saved Messages", type: "self", isSelfChat: true } as const;
+    setResults([alice, self]);
+    await expect(resolver.resolve("a1", "Saved Messages")).resolves.toMatchObject({
+      recipient: self,
+    });
+    await expect(resolver.select("a1", "Saved Messages", alice.id)).rejects.toMatchObject({
+      code: "CHAT_NOT_FOUND",
+    });
+  });
   it("returns not_found for an empty search", async () => {
     const { resolver } = setup([]);
     await expect(resolver.resolve("a1", "nobody")).resolves.toEqual({ status: "not_found" });

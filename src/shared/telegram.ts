@@ -3,7 +3,7 @@
  * These are deliberately small: the agent never sees DOM, selectors, or
  * unbounded lists. Limits are enforced in the service layer, not by callers.
  */
-export type TelegramChatType = "user" | "group" | "channel" | "unknown";
+export type TelegramChatType = "user" | "group" | "channel" | "self" | "unknown";
 
 export type TelegramMessageDirection = "incoming" | "outgoing" | "unknown";
 
@@ -14,10 +14,7 @@ export const AGENT_LIMITS = {
   messagesMax: 30,
 } as const;
 
-export type AgentChat = {
-  readonly id: string;
-  readonly title: string;
-  readonly type: TelegramChatType;
+export type AgentChat = AgentRecipient & {
   readonly unread: boolean;
   readonly lastMessagePreview?: string;
 };
@@ -42,6 +39,9 @@ export type AgentRecipient = {
   readonly id: string;
   readonly title: string;
   readonly type: TelegramChatType;
+  readonly isSelfChat?: true;
+  readonly subtitle?: string;
+  readonly username?: string;
 };
 
 export type AgentRecipientResolution =

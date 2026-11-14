@@ -112,10 +112,14 @@ export class RecipientResolver {
     const seen = new Set<string>();
     return results
       .filter((candidate) => {
-        if (candidate.id === "" || seen.has(candidate.id)) return false;
+        if (!/^-?[1-9]\d{0,19}$/.test(candidate.id) || seen.has(candidate.id)) return false;
         seen.add(candidate.id);
         return true;
       })
+      .filter(
+        (candidate) =>
+          key !== "saved messages" || (candidate.type === "self" && candidate.isSelfChat === true),
+      )
       .slice(0, this.maxResults);
   }
 

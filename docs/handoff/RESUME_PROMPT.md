@@ -39,6 +39,10 @@ adds one-shot confirmed text send and reply. Live smoke still needs separate
 approval for each exact account, peer, message text and reply target.
 Task 5 and Phase 5 await separate approval.
 
+Read `docs/phase4/SAVED_MESSAGES_RESOLUTION.md` for the recipient regression.
+First obtain a read-only Chromium audit of the deployed search row and active
+header. Current evidence covers public WebK source, a screenshot and fixtures.
+
 Read `docs/phase4/TASK1_DOM_AUDIT.md` and `docs/phase4/TASK2_READ_ADAPTER.md`
 for selectors, API, limits and limitations; `docs/phase4/PHASE4_REPORT.md` is the
 phase-level status report. Do not start Phase 5.

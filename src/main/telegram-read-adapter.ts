@@ -155,7 +155,12 @@ export class TelegramReadAdapter {
               retryable: true,
             });
           });
-        return await this.readChatRows(page, limit, `${SELECTORS.searchResultRows[0]}:visible`);
+        return await this.readChatRows(
+          page,
+          limit,
+          `${SELECTORS.searchResultRows[0]}:visible`,
+          true,
+        );
       } finally {
         await input.fill("", { timeout: this.loadingTimeout }).catch(() => undefined);
       }
@@ -254,7 +259,22 @@ export class TelegramReadAdapter {
           await this.openChatPage(page, chatId);
         }
         const info = await this.readOpenChatInfo(page);
-        if (info.id !== chatId || !info.titleVisible || info.title !== operation.recipient.title) {
+        const self =
+          operation.kind === "send" &&
+          operation.recipient.type === "self" &&
+          operation.recipient.isSelfChat === true;
+        const active = page.locator(SELECTORS.activeChat);
+        const peer = active.locator(SELECTORS.activeChatPeer);
+        if (
+          info.id !== chatId ||
+          !info.titleVisible ||
+          (operation.kind === "send" &&
+            ((await active.count()) !== 1 ||
+              (await peer.count()) !== 1 ||
+              (await peer.getAttribute("data-peer-id", { timeout: this.loadingTimeout })) !==
+                chatId)) ||
+          (!self && info.title !== operation.recipient.title)
+        ) {
           throw new AppError("TELEGRAM_UI_CHANGED", "Approved destination could not be verified");
         }
         return submitThroughComposer(
@@ -335,9 +355,10 @@ export class TelegramReadAdapter {
     page: Page,
     limit: number,
     selector: string = SELECTORS.chatRows[0] ?? "#chatlist-container .chatlist-chat",
+    search = false,
   ): Promise<ChatSummary[]> {
     return page.locator(selector).evaluateAll(
-      (elements, { max, selectors }) =>
+      (elements, { max, selectors, search }) =>
         elements
           .slice(0, max)
           .map((element) => {
@@ -355,22 +376,43 @@ export class TelegramReadAdapter {
             );
             const title = (titleElement?.textContent ?? "").trim();
             const preview = (previewElement?.textContent ?? "").trim();
+            const subtitle = previewElement
+              ?.querySelector(selectors.searchSelfSubtitle)
+              ?.textContent?.trim();
+            const handle = previewElement
+              ?.querySelector(selectors.searchHandle)
+              ?.textContent?.trim();
+            const self =
+              search &&
+              /^[1-9]\d{0,19}$/.test(id) &&
+              preview.toLowerCase() === "chat with yourself" &&
+              subtitle === preview &&
+              !handle;
             return {
               id,
-              title: title.slice(0, 256),
-              type: "unknown" as const,
+              title: self ? "Saved Messages" : title.slice(0, 256),
+              type: self ? ("self" as const) : ("unknown" as const),
               unread,
-              ...(preview ? { lastMessagePreview: preview.slice(0, 256) } : {}),
+              ...(self ? { isSelfChat: true as const, subtitle } : {}),
+              ...(search && handle && /^@[a-z\d_]{1,32}$/i.test(handle)
+                ? { username: handle }
+                : {}),
+              ...(preview && (!search || (!self && !handle && !/^\+/.test(preview)))
+                ? { lastMessagePreview: preview.slice(0, 256) }
+                : {}),
             };
           })
           .filter((chat) => chat.id !== "" && chat.title !== "")
           .slice(0, max),
       {
         max: limit,
+        search,
         selectors: {
           chatRowTitle: SELECTORS.chatRowTitle,
           chatRowPreview: SELECTORS.chatRowPreview,
           chatUnread: SELECTORS.chatUnread,
+          searchSelfSubtitle: SELECTORS.searchSelfSubtitle,
+          searchHandle: SELECTORS.searchHandle,
         },
       },
     ) as Promise<ChatSummary[]>;

@@ -163,7 +163,7 @@ export class MessageOperations {
       accountId,
       accountLabel,
       text,
-      recipient: Object.freeze({ id: recipient.id, title: recipient.title, type: recipient.type }),
+      recipient: Object.freeze({ ...recipient }),
       operationId: randomUUID(),
       expiresAt: this.now() + TTL_MS,
     };

@@ -71,10 +71,13 @@ function createServices(): {
   const adapter = new TelegramReadAdapter({ pageSource: (id) => manager.getPage(id) });
   const resolver = new RecipientResolver({
     search: async (accountId, query, limit) =>
-      (await adapter.searchChats(accountId, query, { limit })).map(({ id, title, type }) => ({
-        id,
-        title,
-        type,
+      (await adapter.searchChats(accountId, query, { limit })).map((row) => ({
+        id: row.id,
+        title: row.title,
+        type: row.type,
+        ...(row.isSelfChat ? { isSelfChat: row.isSelfChat } : {}),
+        ...(row.subtitle ? { subtitle: row.subtitle } : {}),
+        ...(row.username ? { username: row.username } : {}),
       })),
   });
   const checkedPages = new WeakSet<object>();
@@ -168,6 +171,10 @@ if (!hasSingleInstanceLock) {
             detail: [
               `Account: ${operation.accountLabel} (${operation.accountId})`,
               `Chat: ${operation.recipient.title} (${operation.recipient.id})`,
+              ...(operation.recipient.isSelfChat ? ["Type: Self Chat"] : []),
+              ...(operation.recipient.username
+                ? [`Username: ${operation.recipient.username}`]
+                : []),
               ...(operation.kind === "reply"
                 ? [`Reply to message ${operation.messageId}`, operation.targetPreview]
                 : []),

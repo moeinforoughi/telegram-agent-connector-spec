@@ -178,6 +178,8 @@ export function TelegramMessaging({ accountId }: { readonly accountId: string })
         <div>
           <p>
             {pending.accountLabel} → {pending.recipient.title} ({pending.recipient.id})
+            {pending.recipient.isSelfChat && " · Self Chat"}
+            {pending.recipient.username && ` · ${pending.recipient.username}`}
           </p>
           {pending.kind === "reply" && (
             <p>

@@ -68,7 +68,12 @@ export const SELECTORS = {
   chatRowPreview: [".dialog-subtitle", ".row-subtitle", ".dialog-subtitle-parts"],
   chatUnread: [".dialog-subtitle-badge-unread", ".dialog-subtitle-badge.is-visible"],
   chatRowTime: [".dialog-title-details .message-time", ".message-time"],
-  searchResultRows: [".search-super .chatlist-chat[data-peer-id]", ".search-super .chatlist-chat"],
+  searchResultRows: [
+    ".search-super .chatlist-chat[data-peer-id]:not([data-mid], .search-super-item)",
+    ".search-super .chatlist-chat",
+  ],
+  searchSelfSubtitle: ".i18n",
+  searchHandle: 'span[dir="ltr"]',
   chatPeerId: [
     "#column-center .topbar .peer-title[data-peer-id]",
     "#column-center .bubble[data-peer-id]",

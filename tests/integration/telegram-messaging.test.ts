@@ -78,6 +78,27 @@ async function fixture(acknowledge = true): Promise<{ page: Page; adapter: Teleg
 }
 
 describe("Telegram messaging fixtures", () => {
+  it("accepts a different header title only for a self recipient with the same active peer", async () => {
+    const { page, adapter } = await fixture();
+    const self = {
+      ...operation,
+      recipient: { id: "101", title: "Saved Messages", type: "self", isSelfChat: true },
+    } as const;
+    try {
+      await page.locator(".topbar .peer-title").evaluate((header) => {
+        header.textContent = "Account display name";
+        header.setAttribute("data-peer-id", "999");
+      });
+      await expect(adapter.submitMessage(self)).rejects.toMatchObject({ code: "CHAT_NOT_FOUND" });
+      expect(await page.locator(".btn-send").getAttribute("data-clicks")).toBeNull();
+      await page
+        .locator(".topbar .peer-title")
+        .evaluate((header) => header.setAttribute("data-peer-id", "101"));
+      await expect(adapter.submitMessage(self)).resolves.toBe("42");
+    } finally {
+      await page.close();
+    }
+  });
   it("submits text once and verifies a new acknowledged outgoing message", async () => {
     const { page, adapter } = await fixture();
     try {

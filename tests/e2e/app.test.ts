@@ -270,7 +270,13 @@ describe("Electron shell", () => {
       </div>
       <script>
         const search = document.querySelector('input');
-        search.oninput = () => { document.querySelector('.search-super').hidden = !search.value; };
+        search.oninput = () => {
+          document.querySelector('.search-super').hidden = !search.value;
+          const self = search.value.toLowerCase() === 'saved messages';
+          document.querySelector('.search-super [data-peer-id="101"]').innerHTML = self
+            ? '<span class="peer-title">Fixture account name</span><span class="dialog-subtitle"><span class="i18n">Chat with yourself</span></span>'
+            : '<span class="peer-title">Test peer</span>';
+        };
         const input = document.querySelector('[contenteditable]');
         const send = document.querySelector('.btn-send');
         input.oninput = () => send.classList.toggle('send', !!input.innerText);
@@ -293,8 +299,13 @@ describe("Electron shell", () => {
     await page.getByRole("button", { name: "Add Account" }).click();
     await page.getByRole("button", { name: "Connect", exact: true }).click();
     await page.getByText("Send or reply", { exact: true }).click({ timeout: 12_000 });
-    await page.getByLabel("Recipient name or username").fill("Test");
     await page.getByLabel("Message text", { exact: true }).fill("Fixture message");
+    await page.getByLabel("Recipient name or username").fill("Saved Messages");
+    await page.getByRole("button", { name: "Prepare", exact: true }).click();
+    await page.getByText(/Saved Messages \(101\) · Self Chat/).waitFor();
+    await page.getByRole("button", { name: "Cancel preparation" }).click();
+    await page.getByText("Cancelled.", { exact: true }).waitFor();
+    await page.getByLabel("Recipient name or username").fill("Test");
     for (const action of ["Cancel preparation", "Review and confirm", "Review and confirm"]) {
       await page.getByRole("button", { name: "Prepare", exact: true }).click();
       await page.getByRole("button", { name: "Test peer (101)", exact: true }).click();
