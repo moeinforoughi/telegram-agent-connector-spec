@@ -27,3 +27,13 @@ Thumbs.db
 # Phase 0 spike artifacts (never commit browsers, profiles or logs)
 spike/.browsers/
 spike/artifacts/
+
+# Specification and agent documentation: kept locally, not part of the app source
+*.md
+!/README.md
+/docs/
+/KNOWLEDGE_BASE/
+/PROMPTS/
+/TASKS/
+/templates/
+/PACKAGE_MANIFEST.json

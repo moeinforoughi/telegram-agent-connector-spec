@@ -1,78 +1,116 @@
-# Unofficial Telegram Agent Connector — Project Specification
+# Unofficial Telegram Agent Connector
 
-این Repository شامل **بسته مشخصات فنی و اجرایی** و **پیاده‌سازی تدریجی MVP** است. Phase 0 (امکان‌سنجی) و Phase 1 (Repository Foundation) تکمیل شده‌اند؛ فازهای بعدی فقط با تأیید کاربر ادامه پیدا می‌کنند. بسته مشخصات شامل نقشه راه، معماری، تسک‌ها، تست‌ها، قراردادها و دستورالعمل‌های لازم برای ساخت محصول است.
+A local Windows desktop app that connects to real Telegram accounts through the visible Telegram Web interface and makes controlled Telegram operations available to local automation.
 
-## هدف محصول
+It does **not** use the Telegram API. There is no `api_id`, `api_hash`, bot token, MTProto client, or session string. You sign in yourself in a real browser window, and the app keeps that browser session on your machine.
 
-ساخت یک برنامه دسکتاپ محلی برای Windows که به کاربر اجازه دهد اکانت‌های واقعی Telegram خود را از طریق رابط قابل مشاهده Telegram Web و بدون درخواست `api_id`، `api_hash` یا Bot Token متصل کند. برنامه باید نشست مرورگر را به‌صورت محلی نگه دارد و قابلیت‌های کنترل‌شده را از طریق یک MCP Server اختصاصی در اختیار ایجنت‌ها قرار دهد.
+> Unofficial and not affiliated with Telegram. Use at your own risk.
 
-> نام محصول در UI و توزیع باید با عبارت **Unofficial** همراه باشد و نباید وابستگی یا تأیید رسمی Telegram را القا کند. از لوگوی رسمی Telegram استفاده نشود.
+## Why
 
-## وضعیت پیاده‌سازی
+Telegram's official APIs require API credentials and do not fit every account or workflow. This connector takes a different route: it drives Telegram Web in a real Chrome for Testing window with Playwright. Any account you can log into manually can be used, and your credentials are never shared with the app or with a third party.
 
-- **Phase 0 — Feasibility:** تکمیل و تأیید شد. Telegram Web (WebZ `/k/`) با ورود QR + 2FA دستی، حفظ Session، خواندن فهرست چت و قفل Profile آزمایش شد. گزارش: `docs/spike/PHASE0_REPORT.md`
-- **Phase 1 — Repository Foundation:** تکمیل شد. اسکلت امن Electron + React + TypeScript، IPC Allowlist، مسیر داده محلی، Typecheck/Lint/Format/Unit/E2E. گزارش: `docs/phase1/PHASE1_REPORT.md`
+## Features
 
-Phase 2 (Browser Manager) هنوز شروع نشده و منتظر تأیید کاربر است.
+- **Manual login only** — QR code, phone number, and two-step password are entered by you in the Telegram Web window. The connector never reads or stores them.
+- **Multi-account** — every account gets its own persistent Chromium profile and isolated session. Up to three browsers can run at once.
+- **Session persistence** — closing the app keeps the profile; reconnecting reuses the existing Telegram session until Telegram asks for login again.
+- **Manual proxy** — SOCKS5 or HTTP proxy for all accounts, with optional credentials encrypted through Windows DPAPI. The built-in test opens a real TCP tunnel to `web.telegram.org:443`.
+- **Read operations** — list chats, search chats, read visible messages, inspect chat metadata, and check UI health.
+- **Send and reply** — a message is prepared first, shown in a native confirmation dialog, and only submitted after you approve it. Ambiguous results are reported without retrying.
+- **Local-first** — account metadata, browser profiles, logs, and caches stay under `%LOCALAPPDATA%`. No cloud service, database, or telemetry.
 
-## تصمیم‌های اصلی
+## How it works
 
-- Windows-first؛ هدف اولیه Windows 11 x64 است.
-- برنامه دسکتاپ با Electron + React + TypeScript.
-- اتوماسیون رابط کاربری با Playwright و Chromium قابل مشاهده.
-- ورود فقط توسط خود کاربر در پنجره مرورگر؛ QR یا ورود با شماره.
-- هیچ `api_id`، `api_hash`، Bot Token یا رمز تلگرام از طریق MCP دریافت نمی‌شود.
-- هر اکانت یک پروفایل دائمی و مستقل Chromium دارد.
-- MCP اختصاصی با Transport نوع STDIO.
-- MCP Bridge از طریق Windows Named Pipe به برنامه محلی متصل می‌شود.
-- معماری Modular Monolith؛ بدون Microservice.
-- Docker در MVP وجود ندارد.
-- تنظیمات و متادیتا در JSON؛ لاگ ممیزی در JSONL. دیتابیس در MVP لازم نیست.
-- عملیات ساده و قطعی با کد محلی انجام می‌شوند؛ LLM فقط در صورت نیاز و مجاز بودن پردازش محتوا استفاده می‌شود.
-- پردازش محتوای چت توسط AI به‌صورت پیش‌فرض غیرفعال است؛ قبل از فعال‌سازی باید الزامات Telegram Content Licensing و رضایت کاربران بررسی و تأیید شود.
+| Layer | Technology | Role |
+|---|---|---|
+| Desktop shell | Electron 45 | App lifecycle, windows, secure IPC |
+| UI | React 19 + TypeScript | Account dashboard, messaging, diagnostics |
+| Telegram driver | Playwright 1.65 + Chrome for Testing | Logs into and drives `web.telegram.org/k/` |
+| Data | JSON files | Account registry, proxy settings, logs |
 
-## ترتیب مطالعه
+The renderer is sandboxed: no Node.js, no filesystem, no `ipcRenderer`. It can only call the allowlisted `window.api` bridge. Every IPC payload is validated in the main process, and production builds enforce a strict Content Security Policy.
 
-1. `AGENTS.md` — دستورالعمل اجباری ایجنت کدنویس
-2. `PROJECT_BRIEF.md` — تعریف محصول و محدوده
-3. `REQUIREMENTS.md` — نیازمندی‌های عملکردی و غیرعملکردی
-4. `ARCHITECTURE.md` و `ARCHITECTURE_DECISIONS.md`
-5. `PROJECT_TREE.md` — ساختار سورس مورد انتظار
-6. `MCP_CONTRACT.md` — قرارداد ابزارهای MCP
-7. `SECURITY_THREAT_MODEL.md` و `PRIVACY_AND_COMPLIANCE.md`
-8. `ROADMAP.md` و فایل‌های `TASKS/`
-9. `TEST_STRATEGY.md` و `TEST_MATRIX.md`
-10. `RELEASE_AND_PACKAGING.md`
+## Requirements
 
-## اجرا و توسعه
+- Windows 11 x64 (primary target)
+- Node.js `26.13.0` with npm
+- A Telegram account
 
-پیش‌نیاز: Node.js `26.13.0` LTS و npm.
+## Getting started
 
-```text
+```sh
 npm install
-npm run dev        # Vite + Electron
-npm run build      # Production build in out/
-npm start          # Preview the built app
-npm run typecheck
-npm run lint
-npm run format:check
-npm test
-npm run check      # all quality gates
+npx playwright install chromium
+npm run dev
 ```
 
-نکته‌ها:
+Then, in the app:
 
-- Electron Main از Node داخلی Electron استفاده می‌کند؛ Build/Test از Node 26.13.0.
-- Chromium داخل Electron فقط Renderer برنامه است. Chrome for Testing مخصوص Playwright در Phase 2 برای Browser Manager استفاده می‌شود.
-- در شبکه‌های محدود، دانلود Electron/Chromium در زمان نصب ممکن است به Proxy یا Mirror محیط Build نیاز داشته باشد. هیچ Proxy در برنامه Hardcode نشده است.
-- Phase 1 به Telegram وارد نمی‌شود و داده اکانت ذخیره نمی‌کند.
+1. **Add Account** and give it a label.
+2. **Connect** — a Telegram Web window opens in its own browser profile.
+3. Log in there (QR, phone, 2FA). The connector only detects that the chat list became visible.
+4. Use **Telegram diagnostics** for chat list, search, messages, and UI health, or **Messaging** to prepare a send or reply.
 
-ساختار سورس: `src/main`، `src/preload`، `src/renderer`، `src/shared`، `tests/unit`، `tests/e2e`.
+### Proxy
 
-## دستور شروع
+If Telegram is unreachable on your network, fill in **Network / Proxy** with a SOCKS5 or HTTP proxy and use **Test Proxy** before connecting. There is no automatic fallback: if the proxy is down, Telegram will not load and the app reports the failure instead of connecting directly.
 
-ایجنت باید فازها را به ترتیب اجرا کند. Phase 0 و Phase 1 انجام شده‌اند. Phase 2 فقط پس از تأیید گزارش Phase 1 شروع شود. در Phase 2 ابتدا D-006 (System Proxy First + Manual Fallback) پیاده‌سازی و اثبات می‌شود؛ سپس Browser Manager. تا زمانی که ورود واقعی بدون API credentials، حفظ نشست پس از Restart و بازیابی پروفایل اثبات نشده، توسعه قابلیت‌های گسترده شروع نشود.
+## Scripts
 
-## محدودیت مهم
+| Command | Description |
+|---|---|
+| `npm run dev` | Run the app in development |
+| `npm run build` | Build into `out/` |
+| `npm start` | Preview the production build |
+| `npm run typecheck` | TypeScript check |
+| `npm run lint` | ESLint |
+| `npm run format:check` | Prettier check |
+| `npm test` | Unit, integration, and E2E tests |
+| `npm run check` | All quality gates |
 
-این بسته تضمین نمی‌کند که Telegram Web همیشه بدون تغییر باقی بماند یا اتوماسیون آن از نظر شرایط استفاده Telegram مجاز باشد. Telegram Web ممکن است تغییر کند، ورود مجدد بخواهد یا رفتار اتوماسیون را محدود کند. محصول باید در چنین شرایطی **Fail Closed** عمل کند: عملیات را متوقف کند، علت را گزارش دهد و از حدس‌زدن یا اجرای عملیات پرریسک خودداری کند.
+## Project structure
+
+```
+src/
+  main/       Electron main process: lifecycle, IPC, accounts, Telegram service
+  preload/    Sandboxed window.api bridge
+  renderer/   React UI
+  shared/     Types and IPC contracts
+  core/       Browser manager, Telegram surface, proxy, and account primitives
+tests/
+  unit/         Pure logic
+  integration/  Real Chromium against local fixtures
+  e2e/          Real Electron app
+spike/        Phase 0 feasibility scripts kept for reference
+```
+
+## Data and privacy
+
+Everything is stored locally:
+
+```
+%LOCALAPPDATA%\UnofficialTelegramAgentConnector\
+  config\accounts.json    account labels and profile paths
+  config\proxy.json       proxy settings; credentials encrypted with DPAPI
+  profiles\<id>\          one Chromium user-data directory per account
+  logs\ cache\ backups\
+```
+
+Nothing is uploaded. The app stores no Telegram password, login code, QR payload, cookie, or message content in its own files. The browser profile holds the session, exactly as a normal browser would.
+
+## Limitations
+
+- Telegram Web is not a stable API. A UI change can break selectors; the connector then fails safely with a clear error instead of guessing.
+- Only `web.telegram.org/k/` is supported.
+- Automating Telegram Web may not be permitted by Telegram's Terms of Service. This project is unofficial and comes with no warranty.
+- Installer packaging and the MCP bridge that will expose these operations to external agents are not implemented yet.
+- AI content processing is deliberately disabled; no message content leaves the machine.
+
+## Status
+
+Implemented: feasibility spike, Electron foundation, browser manager, manual proxy, multi-account management, read-only chat surface, and confirmed send/reply. Next: packaging and the local MCP bridge.
+
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or connected to Telegram. "Telegram" is a trademark of its respective owner. Use it only with accounts you own and in compliance with applicable terms and laws.
